@@ -7,9 +7,10 @@ import os, uuid
 import requests
 import random
 from datetime import datetime
-
+from dotenv import load_dotenv
 app = Flask(__name__)
 
+load_dotenv()
 # -------------------------
 # 🔧 Supabase setup
 # -------------------------
