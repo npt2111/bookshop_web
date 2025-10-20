@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TVTBookShop - Cửa hàng Sách Online</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #f8f9fa, #eef2ff);
+      color: #333;
+      padding-top: 80px;
+    }
+
+    /* 🌟 Navbar */
+    .navbar {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      z-index: 1000;
+      background: linear-gradient(90deg, #007bff, #6610f2);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    .navbar-brand {
+      font-weight: 700;
+      font-size: 1.5rem;
+      color: #fff !important;
+    }
+    .nav-link, .btn {
+      transition: 0.3s;
+    }
+    .btn-warning {
+      background-color: #ffca28;
+      border: none;
+    }
+    .btn-warning:hover {
+      background-color: #ffc107;
+    }
+
+    /* 🌸 Hero section */
+    .hero {
+      text-align: center;
+      padding: 60px 15px;
+      background: linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%);
+      color: #fff;
+      border-radius: 12px;
+      margin-bottom: 40px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+
+    /* 🔍 Thanh tìm kiếm + bộ lọc */
+    .search-filter {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+
+    .search-filter input, .search-filter select {
+      border-radius: 25px;
+      padding: 10px 20px;
+      border: 1px solid #ccc;
+      outline: none;
+      transition: 0.3s;
+    }
+
+    .search-filter input:focus, .search-filter select:focus {
+      border-color: #007bff;
+      box-shadow: 0 0 8px rgba(0,123,255,0.3);
+    }
+
+    /* 🛍️ Cards */
+    .card {
+      border: none;
+      border-radius: 15px;
+      overflow: hidden;
+      transition: transform 0.25s ease, box-shadow 0.25s;
+      background: #fff;
+      height: 100%;
+    }
+    .card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    .card-img-top {
+      height: 280px;
+      object-fit: contain;
+      background: #f8f9fa;
+    }
+    .card-body h5 {
+      font-weight: 600;
+      color: #343a40;
+    }
+    .price {
+      font-weight: bold;
+      color: #ff4081;
+      font-size: 1.1rem;
+    }
+
+    /* 🦋 Buttons */
+    .btn-outline-primary, .btn-outline-info {
+      border-radius: 25px;
+      font-weight: 500;
+    }
+
+    .btn-outline-primary:hover {
+      background-color: #007bff;
+      color: white;
+    }
+
+    .btn-outline-info:hover {
+      background-color: #17a2b8;
+      color: white;
+    }
+
+    /* 🌙 Footer */
+    footer {
+      background: #212529;
+      color: #fff;
+      text-align: center;
+      padding: 25px;
+      margin-top: 60px;
+      border-top: 3px solid #007bff;
+    }
+    footer strong {
+      color: #ffc107;
+    }
+
+    @media (max-width: 768px) {
+      .card-img-top {
+        height: 220px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- 🌟 Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark">
+    <div class="container">
+      <a class="navbar-brand" href="#">📚 TVTBookShop</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto align-items-center">
+          <li class="nav-item me-3">
+            <a class="nav-link text-light" href="/cart">
+              🛒 Giỏ hàng <span class="badge bg-light text-dark" id="cart-count">0</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="btn btn-warning btn-sm fw-bold" href="{{ url_for('admin') }}">
+              ⚙️ Quản lý kho
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 🌸 Hero -->
+  <section class="hero container">
+    <h1>Chào mừng đến với TVTBookShop 📖</h1>
+    <p>Khám phá những cuốn sách hay nhất, giá tốt nhất và giao hàng nhanh chóng tận nơi.</p>
+  </section>
+
+ <!-- 🔍 Thanh tìm kiếm & bộ lọc -->
+<div class="container search-filter d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+  <form class="d-flex flex-wrap gap-3 w-100 justify-content-center" method="GET">
+    <input type="text" name="search" value="{{ search_query }}" placeholder="🔍 Tìm theo tên sách hoặc tác giả..." class="form-control" style="max-width: 300px;">
+
+    <select name="type" class="form-select" style="max-width: 200px;">
+      <option value="">📚 Tất cả thể loại</option>
+      {% for t in types %}
+        <option value="{{ t.name }}" {% if filter_type == t.name %}selected{% endif %}>{{ t.name }}</option>
+      {% endfor %}
+    </select>
+
+    <div class="d-flex align-items-center">
+      <label class="me-2 text-secondary">💰 Giá:</label>
+      <input type="number" name="min" value="{{ price_min }}" class="form-control me-2" placeholder="Từ" style="width: 90px;">
+      <input type="number" name="max" value="{{ price_max }}" class="form-control me-2" placeholder="Đến" style="width: 90px;">
+    </div>
+
+    <button type="submit" class="btn btn-primary">Lọc</button>
+  </form>
+</div>
+
+</div>
+
+<!-- 📘 Danh sách sản phẩm -->
+<div class="container">
+  <div class="row row-cols-1 row-cols-md-3 g-4">
+    {% for item in products %}
+    <div class="col">
+      <div class="card h-100 shadow-sm">
+        <img src="{{ item.image_url or 'https://via.placeholder.com/250x300?text=No+Image' }}" 
+             class="card-img-top"
+             alt="{{ item.product }}"
+             onerror="this.src='https://via.placeholder.com/250x300?text=No+Image';">
+        <div class="card-body text-center">
+          <h5 class="card-title">{{ item.product }}</h5>
+          <p class="text-muted mb-1">Tác giả: {{ item.author or 'Đang cập nhật' }}</p>
+          <p class="text-muted mb-1">Thể loại: <span class="badge bg-primary">{{ item.type or 'Khác' }}</span></p>
+          <p class="price">💰 {{ item.price | default(0) }} VND</p>
+          <a href="{{ url_for('product_detail', product_id=item.id) }}" class="btn btn-outline-info w-75 mb-2">🔍 Chi tiết</a>
+          <a href="{{ url_for('add_to_cart', product_id=item.id) }}" class="btn btn-outline-primary w-75">
+              🛒 Thêm vào giỏ
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+<!-- 📄 Pagination -->
+<div class="container mt-4">
+  <nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+      {% if page and page > 1 %}
+        <li class="page-item">
+          <a class="page-link" href="{{ url_for('index', page=page-1, search=search_query, type=filter_type, min=price_min, max=price_max) }}">« Trang trước</a>
+        </li>
+      {% endif %}
+
+      {% for i in range(1, total_pages + 1) %}
+        <li class="page-item {% if i == page %}active{% endif %}">
+          <a class="page-link" href="{{ url_for('index', page=i, search=search_query, type=filter_type, min=price_min, max=price_max) }}">{{ i }}</a>
+        </li>
+      {% endfor %}
+
+      {% if page < total_pages %}
+        <li class="page-item">
+          <a class="page-link" href="{{ url_for('index', page=page+1, search=search_query, type=filter_type, min=price_min, max=price_max) }}">Trang sau »</a>
+        </li>
+      {% endif %}
+    </ul>
+  </nav>
+</div>
+
+  <!-- 🌙 Footer -->
+  <footer>
+    <p>© 2025 <strong>TVTBookShop</strong> | Designed by <strong>Nguyễn Thuận</strong></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // // 🛒 Giỏ hàng demo
+    // let cartCount = 0;
+    // const cartBadge = document.getElementById('cart-count');
+    // document.querySelectorAll('.btn-outline-primary').forEach(btn => {
+    //   btn.addEventListener('click', (e) => {
+    //     e.preventDefault();
+    //     cartCount++;
+    //     cartBadge.textContent = cartCount;
+    //     alert('📗 Sách đã được thêm vào giỏ hàng!');
+    //   });
+    // });
+
+    
+  </script>
+</body>
+</html>

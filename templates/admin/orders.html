@@ -1,0 +1,37 @@
+{% extends "admin.html" %}
+{% block content %}
+<h2>📦 Danh sách đơn hàng</h2>
+<table border="1" cellpadding="8">
+    <tr>
+        <th>Order ID</th>
+        <th>Khách hàng</th>
+        <th>Tổng tiền</th>
+        <th>Ngày tạo</th>
+        <th>Trạng thái</th>
+        <th>Hành động</th>
+    </tr>
+
+    {% for o in orders %}
+    <tr>
+        <td><a href="{{ url_for('admin_order_detail', order_id=o.order_id) }}">{{ o.order_id }}</a></td>
+        <td>{{ o.name }}</td>
+        <td>{{ o.total_amount }}₫</td>
+        <td>{{ o.created_at }}</td>
+        <td>
+            {% if o.status == "pending" %}
+                <span style="color: orange;">⏳ Pending</span>
+            {% else %}
+                <span style="color: green;">✅ Accepted</span>
+            {% endif %}
+        </td>
+        <td>
+            {% if o.status == "pending" %}
+            <a href="{{ url_for('update_order_status', order_id=o.order_id) }}">✔ Accept</a>
+            {% else %}
+            Done
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

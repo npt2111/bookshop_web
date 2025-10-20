@@ -1,0 +1,25 @@
+{% extends "admin_layout.html" %}
+{% block content %}
+<h2>📄 Chi tiết đơn hàng {{ order.order_id }}</h2>
+<p><b>Khách:</b> {{ order.name }}</p>
+<p><b>Email:</b> {{ order.email }}</p>
+<p><b>Phone:</b> {{ order.phone }}</p>
+<p><b>Địa chỉ:</b> {{ order.address }}</p>
+<p><b>Ghi chú:</b> {{ order.note }}</p>
+<p><b>Tổng tiền:</b> {{ order.total_amount }}₫</p>
+<p><b>Trạng thái:</b> {{ order.status }}</p>
+
+<h3>🛒 Sản phẩm</h3>
+<table border="1" cellpadding="8">
+    <tr><th>Tên</th><th>Số lượng</th><th>Giá</th></tr>
+    {% for item in order.product %}
+    <tr>
+        <td>{{ item.name }}</td>
+        <td>{{ item.quantity }}</td>
+        <td>{{ item.price }}₫</td>
+    </tr>
+    {% endfor %}
+</table>
+
+<a href="{{ url_for('admin_orders') }}">⬅ Quay lại</a>
+{% endblock %}
