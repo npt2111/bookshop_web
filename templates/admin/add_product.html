@@ -1,0 +1,58 @@
+{% extends "admin.html" %}
+
+{% block content %}
+<div class="card p-4">
+  <h2 class="mb-4 text-primary">➕ Thêm sản phẩm mới</h2>
+
+  <form method="POST" enctype="multipart/form-data">
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Tên sản phẩm</label>
+        <input type="text" name="name" class="form-control" required>
+      </div>
+
+      <div class="col-md-3 mb-3">
+        <label class="form-label">Giá (VND)</label>
+        <input type="number" name="price" class="form-control" required min="0">
+      </div>
+
+      <div class="col-md-3 mb-3">
+        <label class="form-label">Số lượng</label>
+        <input type="number" name="quantity" class="form-control" required min="1">
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Tác giả</label>
+        <input type="text" name="author" class="form-control" placeholder="Ví dụ: Nguyễn Nhật Ánh">
+      </div>
+
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Thể loại</label>
+        <select name="type" class="form-select" required>
+          <option value="">-- Chọn thể loại --</option>
+          {% for t in types %}
+            <option value="{{ t.name }}">{{ t.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Mô tả sản phẩm</label>
+      <textarea name="description" class="form-control" rows="4" placeholder="Nhập mô tả chi tiết về cuốn sách..."></textarea>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Hình ảnh sản phẩm</label>
+      <input type="file" name="image_file" class="form-control" accept="image/*" required>
+    </div>
+
+    <div class="d-flex justify-content-between">
+      <a href="{{ url_for('product') }}" class="btn btn-secondary">⬅️ Quay lại</a>
+      <button type="submit" class="btn btn-success">💾 Thêm sản phẩm</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

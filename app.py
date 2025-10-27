@@ -164,7 +164,7 @@ def add_product():
         return redirect(url_for("admin", msg="✅ Thêm sản phẩm thành công!"))
 
     types = supabase.table("type_book").select("*").execute().data or []
-    return render_template("add_product.html", types=types)
+    return render_template("admin/add_product.html", types=types)
 
 
 # -------------------------
