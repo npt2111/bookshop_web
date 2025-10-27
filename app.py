@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from supabase import create_client
 from werkzeug.utils import secure_filename
+
 from flask_session import Session
 from datetime import timedelta
 import os, uuid
@@ -130,6 +131,10 @@ def product():
 # -------------------------
 #  Thêm sản phẩm
 # -------------------------
+import time
+import os
+from werkzeug.utils import secure_filename
+
 @app.route("/admin/add", methods=["GET", "POST"])
 def add_product():
     if request.method == "POST":
@@ -143,14 +148,20 @@ def add_product():
 
         image_url = ""
         if file:
-            filename = secure_filename(file.filename)
-            file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-            file.save(file_path)
+            filename = str(int(time.time())) + "_" + secure_filename(file.filename)
+            try:
+                # ✅ Đọc file thành bytes trước khi upload
+                file_bytes = file.read()
+                supabase.storage.from_("product-images").upload(filename, file_bytes)
 
-            with open(file_path, "rb") as f:
-                supabase.storage.from_("product-images").upload(filename, f)
-            image_url = f"{SUPABASE_URL}/storage/v1/object/public/product-images/{filename}"
+                # ✅ Link ảnh public
+                image_url = f"{SUPABASE_URL}/storage/v1/object/public/product-images/{filename}"
 
+            except Exception as e:
+                print("❌ Lỗi khi upload ảnh:", e)
+                return "Lỗi khi upload ảnh sản phẩm!"
+
+        # ✅ Lưu vào Supabase
         supabase.table("inventory").insert({
             "product": product,
             "price": price,
@@ -165,7 +176,6 @@ def add_product():
 
     types = supabase.table("type_book").select("*").execute().data or []
     return render_template("admin/add_product.html", types=types)
-
 
 # -------------------------
 #  Sửa sản phẩm
