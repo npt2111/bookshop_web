@@ -1,42 +1,74 @@
 {% extends "admin.html" %}
 
 {% block content %}
-<h2>📦 Danh sách đơn hàng</h2>
+<style>
+  .table-responsive {
+    max-height: 750px;
+    overflow-y: auto;
+  }
+  thead th {
+    position: sticky;
+    top: 0;
+    background: #0d6efd;
+    color: white;
+    z-index: 5;
+  }
+</style>
 
-<table class="table table-bordered table-striped">
-    <thead class="table-primary">
+<div class="card shadow-sm p-4 bg-white">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="text-primary mb-0">📦 Danh sách đơn hàng</h2>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead class="text-center">
         <tr>
-            <th>Order ID</th>
-            <th>Khách hàng</th>
-            <th>Tổng tiền</th>
-            <th>Ngày tạo</th>
-            <th>Trạng thái</th>
-            <th>Hành động</th>
+          <th style="width: 120px;">Mã đơn</th>
+          <th>Khách hàng</th>
+          <th style="width: 160px;">Tổng tiền</th>
+          <th style="width: 200px;">Ngày tạo</th>
+          <th style="width: 140px;">Trạng thái</th>
+          <th style="width: 160px;"></th>
         </tr>
-    </thead>
-    <tbody>
-    {% for o in orders %}
+      </thead>
+      <tbody>
+      {% for o in orders %}
         <tr>
-            <td><a href="{{ url_for('admin_order_detail', order_id=o.order_id) }}">{{ o.order_id }}</a></td>
-            <td>{{ o.name }}</td>
-            <td>{{ o.total_amount }}₫</td>
-            <td>{{ o.created_at[:19] }}</td>
-            <td>
-                {% if o.status == "pending" %}
-                    <span class="text-warning">⏳ Pending</span>
-                {% else %}
-                    <span class="text-success">✅ Accepted</span>
-                {% endif %}
-            </td>
-            <td>
-                {% if o.status == "pending" %}
-                    <a href="{{ url_for('update_order_status', order_id=o.order_id) }}" class="btn btn-sm btn-primary">✔ Accept</a>
-                {% else %}
-                    Done
-                {% endif %}
-            </td>
+          <td class="fw-bold text-center">
+            <a href="{{ url_for('admin_order_detail', order_id=o.order_id) }}">{{ o.order_id }}</a>
+          </td>
+          <td>{{ o.name }}</td>
+          <td class="text-danger fw-bold">{{ "{:,.0f}".format(o.total_amount|float) }}₫</td>
+          <td>{{ o.created_at[:19] }}</td>
+          <td class="text-center">
+            {% if o.status == "pending" %}
+              <span class="badge bg-warning text-dark">⏳ Chờ xử lý</span>
+            {% elif o.status == "accept" %}
+              <span class="badge bg-success">✅ Chấp nhận</span>
+            {% else %}
+              <span class="badge bg-secondary">Khác</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            {% if o.status == "pending" %}
+              <a href="{{ url_for('update_order_status', order_id=o.order_id) }}" class="btn btn-sm btn-primary">
+                ✔ Xác nhận
+              </a>
+            {% else %}
+              <span class="text-success fw-bold">Đã xong</span>
+            {% endif %}
+          </td>
         </tr>
-    {% endfor %}
-    </tbody>
-</table>
+      {% else %}
+        <tr>
+          <td colspan="6" class="text-center text-muted py-3">
+            Không có đơn hàng nào.
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
 {% endblock %}
