@@ -47,7 +47,7 @@
             {% elif o.status == "accept" %}
               <span class="badge bg-success">✅ Chấp nhận</span>
             {% else %}
-              <span class="badge bg-secondary">Khác</span>
+              <span class="badge bg-secondary">{{ o.status }}</span>
             {% endif %}
           </td>
           <td class="text-center">
