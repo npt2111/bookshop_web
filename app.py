@@ -180,6 +180,7 @@ def add_product():
 # -------------------------
 #  Sửa sản phẩm
 # -------------------------
+
 @app.route("/admin/edit/<int:id>", methods=["GET", "POST"])
 def edit_product(id):
     types = supabase.table("type_book").select("*").execute().data or []
@@ -191,17 +192,24 @@ def edit_product(id):
         author = request.form.get("author")
         description = request.form.get("description")
         book_type = request.form.get("type")
+        image_url = request.form.get("old_image_url")  # giữ ảnh cũ nếu không đổi
+
         file = request.files.get("image_file")
-        image_url = request.form.get("old_image_url")
-
         if file and file.filename:
+            # ✅ Tạo tên file unique
             filename = f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
-            path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-            file.save(path)
-            with open(path, "rb") as f:
-                supabase.storage.from_("product-images").upload(filename, f)
-            image_url = f"{SUPABASE_URL}/storage/v1/object/public/product-images/{filename}"
 
+            # ✅ Upload trực tiếp lên Supabase Storage
+            try:
+                supabase.storage.from_("product-images").upload(
+                    filename, file.read()
+                )
+                image_url = f"{SUPABASE_URL}/storage/v1/object/public/product-images/{filename}"
+            except Exception as e:
+                print("❌ Upload ảnh thất bại:", e)
+                return "Lỗi upload ảnh!", 500
+
+        # ✅ Cập nhật sản phẩm
         supabase.table("inventory").update({
             "product": product,
             "price": price,
@@ -212,7 +220,7 @@ def edit_product(id):
             "image_url": image_url
         }).eq("id", id).execute()
 
-        return redirect(url_for("admin", msg="📝 Cập nhật sản phẩm thành công!"))
+        return redirect(url_for("admin", msg="✅ Cập nhật sản phẩm thành công!"))
 
     product = supabase.table("inventory").select("*").eq("id", id).single().execute().data
     return render_template("admin/edit_product.html", product=product, types=types)
