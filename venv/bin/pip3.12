@@ -1,4 +1,4 @@
-#!/home/thuan/my_flask_app/bookshop/venv/bin/python3.12
+#!/home/thuan/my_flask_app/bookshop/venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys

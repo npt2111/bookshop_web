@@ -1,25 +1,35 @@
-{% extends "admin_layout.html" %}
-{% block content %}
-<h2>📄 Chi tiết đơn hàng {{ order.order_id }}</h2>
-<p><b>Khách:</b> {{ order.name }}</p>
-<p><b>Email:</b> {{ order.email }}</p>
-<p><b>Phone:</b> {{ order.phone }}</p>
-<p><b>Địa chỉ:</b> {{ order.address }}</p>
-<p><b>Ghi chú:</b> {{ order.note }}</p>
-<p><b>Tổng tiền:</b> {{ order.total_amount }}₫</p>
-<p><b>Trạng thái:</b> {{ order.status }}</p>
+{% extends "admin.html" %}
 
-<h3>🛒 Sản phẩm</h3>
-<table border="1" cellpadding="8">
-    <tr><th>Tên</th><th>Số lượng</th><th>Giá</th></tr>
-    {% for item in order.product %}
-    <tr>
-        <td>{{ item.name }}</td>
-        <td>{{ item.quantity }}</td>
-        <td>{{ item.price }}₫</td>
-    </tr>
-    {% endfor %}
+{% block content %}
+<h2>📦 Chi tiết đơn hàng {{ order.order_id }}</h2>
+<p><strong>Khách hàng:</strong> {{ order.name }}</p>
+<p><strong>Email:</strong> {{ order.email }}</p>
+<p><strong>Số điện thoại:</strong> {{ order.phone }}</p>
+<p><strong>Địa chỉ:</strong> {{ order.address }}</p>
+
+<h3>Sản phẩm trong đơn</h3>
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Tên sản phẩm</th>
+            <th>Giá</th>
+            <th>Số lượng</th>
+            <th>Ảnh</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in order.product %}
+        <tr>
+            <td>{{ item.name }}</td>
+            <td>{{ item.price }}₫</td>
+            <td>{{ item.quantity }}</td>
+            <td><img src="{{ item.image_url }}" alt="" width="60"></td>
+        </tr>
+        {% endfor %}
+    </tbody>
 </table>
 
-<a href="{{ url_for('admin_orders') }}">⬅ Quay lại</a>
+<p><strong>Tổng tiền:</strong> {{ order.total_amount }}₫</p>
+<p><strong>Ghi chú:</strong> {{ order.note }}</p>
+<p><strong>Trạng thái:</strong> {{ order.status }}</p>
 {% endblock %}

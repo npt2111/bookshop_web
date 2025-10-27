@@ -7,20 +7,19 @@ import os, uuid
 import requests
 import random
 from datetime import datetime
-from dotenv import load_dotenv
+import json
 app = Flask(__name__)
 
-load_dotenv()
 # -------------------------
-# 🔧 Supabase setup
+# Supabase setup
 # -------------------------
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # -------------------------
-# 🔧 Flask Session setup
-# -------------------------
+#  Flask Session setup
+# ------------------------
 SESSION_DIR = os.path.join(os.getcwd(), ".flask_session")
 os.makedirs(SESSION_DIR, exist_ok=True)
 
@@ -57,7 +56,7 @@ def index():
     products = res.data or []
     types = supabase.table("type_book").select("*").execute().data or []
 
-    # 🧠 Lọc từ khóa
+    #  Lọc từ khóa
     if search_query:
         products = [
             p for p in products
@@ -65,14 +64,14 @@ def index():
             or search_query.lower() in (p.get("author") or "").lower()
         ]
 
-    # 🧩 Lọc thể loại
+    #  Lọc thể loại
     if filter_type:
         products = [p for p in products if p.get("type") == filter_type]
 
-    # 💰 Lọc giá
+    # Lọc giá
     products = [p for p in products if price_min <= float(p.get("price") or 0) <= price_max]
 
-    # 📄 Phân trang
+    # Phân trang
     per_page = 9
     total_pages = max(1, (len(products) + per_page - 1) // per_page)
     start = (page - 1) * per_page
@@ -93,7 +92,7 @@ def index():
 
 
 # -------------------------
-# 🛒 Đặt hàng
+#  Đặt hàng
 # -------------------------
 @app.route("/order/<int:product_id>", methods=["GET", "POST"])
 def order(product_id):
@@ -113,23 +112,23 @@ def order(product_id):
 
 
 # -------------------------
-# 👑 Trang admin
+# Trang admin
 # -------------------------
 @app.route("/admin")
 def admin():
     res = supabase.table("inventory").select("*").order("id", desc=False).execute()
     products = res.data or []
     msg = request.args.get("msg")
-    return render_template("admin.html", products=products, msg=msg)
+    return render_template("admin/product.html", products=products, msg=msg)
 
 @app.route("/admin/product")
 def product():
     res = supabase.table("inventory").select("*").order("id", desc=False).execute()
     products = res.data or []
     msg = request.args.get("msg")
-    return render_template("admin.html", products=products, msg=msg)
+    return render_template("admin/product.html", products=products, msg=msg)
 # -------------------------
-# 🟠 Thêm sản phẩm
+#  Thêm sản phẩm
 # -------------------------
 @app.route("/admin/add", methods=["GET", "POST"])
 def add_product():
@@ -169,7 +168,7 @@ def add_product():
 
 
 # -------------------------
-# ✏️ Sửa sản phẩm
+#  Sửa sản phẩm
 # -------------------------
 @app.route("/admin/edit/<int:id>", methods=["GET", "POST"])
 def edit_product(id):
@@ -206,11 +205,11 @@ def edit_product(id):
         return redirect(url_for("admin", msg="📝 Cập nhật sản phẩm thành công!"))
 
     product = supabase.table("inventory").select("*").eq("id", id).single().execute().data
-    return render_template("edit_product.html", product=product, types=types)
+    return render_template("admin/edit_product.html", product=product, types=types)
 
 
 # -------------------------
-# 🗑️ Xóa sản phẩm
+#  Xóa sản phẩm
 # -------------------------
 @app.route("/admin/delete/<int:id>")
 def delete_product(id):
@@ -219,7 +218,7 @@ def delete_product(id):
 
 
 # -------------------------
-# 🔍 Chi tiết sản phẩm
+# Chi tiết sản phẩm
 # -------------------------
 @app.route("/product/<int:product_id>")
 def product_detail(product_id):
@@ -228,7 +227,7 @@ def product_detail(product_id):
 
 
 # -------------------------
-# 🛒 Thêm vào giỏ hàng
+# Thêm vào giỏ hàng
 # -------------------------
 @app.route("/add_to_cart/<int:product_id>")
 def add_to_cart(product_id):
@@ -258,7 +257,7 @@ def add_to_cart(product_id):
 
 
 # -------------------------
-# 🧺 Trang giỏ hàng
+#  Trang giỏ hàng
 # -------------------------
 @app.route("/cart")
 def cart():
@@ -268,7 +267,7 @@ def cart():
 
 
 # -------------------------
-# 🔄 Cập nhật số lượng AJAX
+# Cập nhật số lượng AJAX
 # -------------------------
 @app.route("/update_cart_ajax/<int:product_id>")
 def update_cart_ajax(product_id):
@@ -292,7 +291,7 @@ def update_cart_ajax(product_id):
 
 
 # -------------------------
-# 🧹 Xóa giỏ hàng
+#  Xóa giỏ hàng
 # -------------------------
 @app.route("/clear_cart")
 def clear_cart():
@@ -301,7 +300,7 @@ def clear_cart():
 
 
 # -------------------------
-# 🧾 Thanh toán & Bulk actions
+#  Thanh toán & Bulk actions
 # -------------------------
 @app.route("/cart_bulk_action", methods=["POST"])
 def cart_bulk_action():
@@ -337,12 +336,10 @@ def cart_bulk_action():
 
 
 # -------------------------
-# ✅ Xử lý sau khi điền thông tin thanh toán
+#  Xử lý sau khi điền thông tin thanh toán
 # -------------------------
-import requests
-from flask import jsonify
 
-# ⚙️ Route hiển thị form thanh toán (hiển thị sản phẩm đã chọn)
+# Chọn sản phẩm để thanh toán
 @app.route("/checkout_selected", methods=["POST"])
 def checkout_selected():
     selected_ids = request.form.getlist("selected_ids")
@@ -352,12 +349,14 @@ def checkout_selected():
     if not selected_items:
         return redirect(url_for("cart"))
 
-    total = sum(item["price"] * item["quantity"] for item in selected_items)
+    #  Lưu tạm sản phẩm được chọn vào session
+    session["checkout_items"] = selected_items
+    session.modified = True
 
+    total = sum(item["price"] * item["quantity"] for item in selected_items)
     return render_template("checkout_form.html", items=selected_items, total=total)
 
-
-# ⚙️ Route xử lý form thanh toán → gửi webhook n8n
+# Xử lý thanh toán
 @app.route("/process_checkout", methods=["POST"])
 def process_checkout():
     name = request.form.get("name")
@@ -366,22 +365,26 @@ def process_checkout():
     address = request.form.get("address")
     note = request.form.get("note")
 
-    # Lấy giỏ hàng đã chọn lưu trong session checkout_temp
     items = session.get("checkout_items", [])
     if not items:
         return render_template("checkout_error.html", error="Không có sản phẩm nào để thanh toán!")
 
     total = sum(item["price"] * item["quantity"] for item in items)
 
-    # ✅ Random order_id 4 số + kiểm tra trùng trong Supabase
+    # Tạo order_id ngẫu nhiên 4 số duy nhất
     while True:
-        random_num = random.randint(1000, 9999)
-        order_id = f"ORD-{random_num}"
+        order_id = f"ORD-{random.randint(1000,9999)}"
         exists = supabase.table("orders").select("order_id").eq("order_id", order_id).execute()
-        if not exists.data:  # không trùng
+        if not exists.data:
             break
 
-    # ✅ Lưu vào Supabase
+    # # Trừ số lượng tồn kho
+    # for item in items:
+    #     current = supabase.table("inventory").select("quantity").eq("id", item["id"]).single().execute()
+    #     new_qty = max(0, current.data["quantity"] - item["quantity"])
+    #     supabase.table("inventory").update({"quantity": new_qty}).eq("id", item["id"]).execute()
+
+    # Lưu đơn hàng vào Supabase (cột product phải là JSONB)
     supabase.table("orders").insert({
         "order_id": order_id,
         "name": name,
@@ -389,62 +392,86 @@ def process_checkout():
         "phone": phone,
         "address": address,
         "note": note,
-        "product": items,
+        "product": items,  # JSON
         "total_amount": total,
-        "created_at": datetime.utcnow().isoformat(),
-        "status": "pending"
+        "status": "pending",
+        "created_at": datetime.utcnow().isoformat()
     }).execute()
 
-    # ✅ Gửi qua Webhook cho n8n
-    payload = {
-        "order_id": order_id,
-        "customer": {
-            "name": name,
-            "email": email,
-            "phone": phone,
-            "address": address,
-            "note": note
-        },
-        "order": {
-            "items": items,
-            "total": total
-        }
-    }
-
+    # Gửi webhook về n8n
     try:
         WEBHOOK_URL = "https://n8n.nocodelowcode.id.vn/webhook-test/checkout"
-        requests.post(WEBHOOK_URL, json=payload, timeout=10)
-    except Exception as e:
-        print("⚠️ Không gửi được đến n8n nhưng vẫn lưu đơn:", e)
+        requests.post(WEBHOOK_URL, json={"order_id": order_id, "customer": {
+            "name": name, "email": email, "phone": phone, "address": address, "note": note
+        }, "order": {"items": items, "total": total}}, timeout=10)
+    except:
+        print("⚠️ Gửi webhook thất bại nhưng đơn đã lưu vào Supabase.")
 
-    # ✅ Xóa giỏ tạm chỉ chứa sản phẩm được checkout
+    # Xóa sản phẩm đã checkout ra khỏi giỏ hàng
+    cart = session.get("cart", [])
+    remaining_cart = [item for item in cart if item not in items]
+    session["cart"] = remaining_cart
+    session.modified = True
+    # Xóa giỏ hàng tạm
     session.pop("checkout_items", None)
 
     return render_template("checkout_success.html", order_id=order_id, customer=name, total=total)
 
 
 # -------------------------
-# 📦 Quản lý đơn hàng (Admin)
+#  Quản lý đơn hàng (Admin)
 # -------------------------
 @app.route("/admin/orders")
 def admin_orders():
-    res = supabase.table("orders").select("*").order("created_at", desc=True).execute()
+    res = supabase.table("orders").select("*").order("id", desc=True).execute()
     orders = res.data or []
     return render_template("admin/orders.html", orders=orders)
 
 
-@app.route("/admin/orders/update_status/<order_id>")
-def update_order_status(order_id):
-    supabase.table("orders").update({"status": "accepted"}).eq("order_id", order_id).execute()
-    return redirect(url_for("admin_orders"))
+
 @app.route("/admin/orders/<order_id>")
 def admin_order_detail(order_id):
     res = supabase.table("orders").select("*").eq("order_id", order_id).single().execute()
     order = res.data
+
+    if order and isinstance(order.get("product"), str):
+        order["product"] = json.loads(order["product"])  # chuyển từ string JSON sang list
+
     return render_template("admin/order_detail.html", order=order)
 
+
+@app.route("/admin/orders/update_status/<order_id>")
+def update_order_status(order_id):
+    # Lấy order từ Supabase
+    res = supabase.table("orders").select("*").eq("order_id", order_id).single().execute()
+    order = res.data
+
+    if not order:
+        return "Order not found", 404
+
+    # Parse product JSON nếu cần
+    products = order.get("product")
+    if isinstance(products, str):
+        products = json.loads(products)
+
+    # Trừ số lượng trong inventory
+    for item in products:
+        product_id = item.get("id")
+        qty_ordered = item.get("quantity", 0)
+        # Lấy tồn kho hiện tại
+        res_inv = supabase.table("inventory").select("quantity").eq("id", product_id).single().execute()
+        if res_inv.data:
+            current_qty = res_inv.data.get("quantity", 0)
+            new_qty = max(0, current_qty - qty_ordered)
+            supabase.table("inventory").update({"quantity": new_qty}).eq("id", product_id).execute()
+
+    # Cập nhật trạng thái order
+    supabase.table("orders").update({"status": "accept"}).eq("order_id", order_id).execute()
+
+    return redirect(url_for("admin_orders"))
+
 # -------------------------
-# 🚀 Run
+#  Run
 # -------------------------
 if __name__ == "__main__":
     app.run(debug=True)
