@@ -37,10 +37,6 @@ app.config.update(
 )
 Session(app)
 
-UPLOAD_FOLDER = "static/uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-
 # -------------------------
 # Trang chủ
 # -------------------------
