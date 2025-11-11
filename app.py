@@ -128,6 +128,7 @@ def login():
                 session['email'] = email
                 session['name'] = customer.get('name', '')
                 session['phone'] = customer.get('phone', '')
+                session['role'] = customer.get('role', '')
                 flash('Đăng nhập thành công!')
                 return redirect(url_for('index'))
             else:
@@ -155,14 +156,13 @@ def logout():
 # -------------------------
 @app.route("/")
 def index():
-    # If user is not logged in, redirect to the login page
+    # Nếu chưa đăng nhập, chuyển sang trang login
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
     search_query = request.args.get("search", "").strip()
     filter_type = request.args.get("type", "")
-    price_min = float(request.args.get("min", 0) or 0)
-    price_max = float(request.args.get("max", 999999999) or 999999999)
+    price_range = request.args.get("price_range", "")
     page = int(request.args.get("page", 1))
 
     # Lấy dữ liệu từ Supabase
@@ -170,7 +170,7 @@ def index():
     products = res.data or []
     types = supabase.table("type_book").select("*").execute().data or []
 
-    #  Lọc từ khóa
+    # 🔍 Lọc từ khóa
     if search_query:
         products = [
             p for p in products
@@ -178,14 +178,25 @@ def index():
             or search_query.lower() in (p.get("author") or "").lower()
         ]
 
-    #  Lọc thể loại
+    # 📚 Lọc thể loại
     if filter_type:
         products = [p for p in products if p.get("type") == filter_type]
 
-    # Lọc giá
-    products = [p for p in products if price_min <= float(p.get("price") or 0) <= price_max]
+    # 💰 Lọc giá theo range
+    price_min, price_max = 0, 999999999
+    if price_range == "20000-50000":
+        price_min, price_max = 20000, 50000
+    elif price_range == "50000-100000":
+        price_min, price_max = 50000, 100000
+    elif price_range == ">100000":
+        price_min, price_max = 100000, 999999999
 
-    # Phân trang
+    products = [
+        p for p in products
+        if price_min <= float(p.get("price") or 0) <= price_max
+    ]
+
+    # 📄 Phân trang
     per_page = 9
     total_pages = max(1, (len(products) + per_page - 1) // per_page)
     start = (page - 1) * per_page
@@ -198,13 +209,13 @@ def index():
         types=types,
         search_query=search_query,
         filter_type=filter_type,
-        price_min=price_min,
-        price_max=price_max,
+        price_range=price_range,
         page=page,
         total_pages=total_pages,
         session=session,
         cart_count=len(session.get('cart', [])),
     )
+
 
 
 # -------------------------
