@@ -23,7 +23,7 @@
       width: 100%;
       z-index: 1000;
       background: linear-gradient(90deg, #007bff, #6610f2);
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);    
     }
 
     .navbar-brand {
@@ -225,9 +225,101 @@
     </div>
   </div>
 
+  <!-- ⭐ Reviews Section -->
+  <div class="container my-5">
+    <div class="row">
+      <div class="col-md-8 mx-auto">
+        <h3 class="mb-4">⭐ Đánh giá & Bình luận</h3>
+
+        <!-- Reviews Display -->
+        {% if reviews %}
+          <div class="reviews-list mb-5">
+            {% for review in reviews %}
+              <div class="card mb-3 p-3">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <strong>👤 {{ review.get('name') or 'Anonymous' }}</strong>
+                    <br>
+                    <small class="text-muted">📧 {{ review.get('email') or '-' }}</small>
+                  </div>
+                  <div class="text-end">
+                    <div class="text-warning">
+                      {% for i in range(review.get('rating', 0)) %}⭐{% endfor %}
+                      <span class="text-muted ms-1">({{ review.get('rating', 0) }}/5)</span>
+                    </div>
+                    <small class="text-muted">{{ review.get('created_at', '')[:10] if review.get('created_at') else '-' }}</small>
+                  </div>
+                </div>
+                <hr class="my-2">
+                <p class="mb-0">{{ review.get('comment', 'Không có bình luận.') }}</p>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="text-muted text-center mb-5">Chưa có đánh giá nào cho sản phẩm này.</p>
+        {% endif %}
+
+        <!-- Review Form (only for users who purchased this product) -->
+        {% if session.get('email') and user_has_purchased %}
+          <div class="card p-4 bg-light">
+            <h5 class="mb-4">📝 Để lại đánh giá của bạn</h5>
+            
+            <!-- Find order_id for this product -->
+            {% set order_id_for_review = '' %}
+            {% for order in user_orders %}
+              {% set products_in_order = order.get('product', []) %}
+              {% if products_in_order is string %}
+                <!-- JSON parsing in Jinja is limited, so we'll pass order_id via form -->
+              {% endif %}
+              {% for p in products_in_order %}
+                {% if p.get('id') == product.id %}
+                  {% set order_id_for_review = order.get('order_id', order.get('id', '')) %}
+                {% endif %}
+              {% endfor %}
+            {% endfor %}
+
+            <form action="{{ url_for('add_review') }}" method="POST">
+              <input type="hidden" name="product_id" value="{{ product.id }}">
+              <input type="hidden" name="order_id" value="{{ order_id_for_review }}">
+
+              <!-- Rating Stars -->
+              <div class="mb-3">
+                <label class="form-label"><strong>⭐ Đánh giá:</strong></label>
+                <div>
+                  <div class="btn-group" role="group">
+                    {% for i in range(1, 6) %}
+                      <input type="radio" class="btn-check" name="rating" id="rating{{ i }}" value="{{ i }}" required>
+                      <label class="btn btn-outline-warning" for="rating{{ i }}">{{ i }} ⭐</label>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Comment -->
+              <div class="mb-3">
+                <label for="comment" class="form-label"><strong>💬 Bình luận:</strong></label>
+                <textarea class="form-control" id="comment" name="comment" rows="4" placeholder="Chia sẻ ý kiến của bạn về sản phẩm này..." required></textarea>
+              </div>
+
+              <button type="submit" class="btn btn-primary w-100">📤 Gửi đánh giá</button>
+            </form>
+          </div>
+        {% elif session.get('email') %}
+          <div class="alert alert-info" role="alert">
+            <strong>ℹ️ Lưu ý:</strong> Bạn cần phải mua sản phẩm này để có thể bình luận và đánh giá.
+          </div>
+        {% else %}
+          <div class="alert alert-warning" role="alert">
+            <strong>⚠️ Lưu ý:</strong> Bạn cần <a href="{{ url_for('login') }}">đăng nhập</a> và mua sản phẩm này để có thể bình luận và đánh giá.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
   <!-- 🌙 Footer -->
   <footer>
-    <p>© 2025 <strong>TVTBookShop</strong> | Designed by <strong>TVTBookshop</strong></p>
+    <p>© 2025 <strong>TVTBookShop</strong> | Designed by <strong>Nguyễn Thuận $ Muhammad Vietrang</strong></p>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
