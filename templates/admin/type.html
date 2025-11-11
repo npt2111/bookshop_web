@@ -1,0 +1,87 @@
+{% extends "admin.html" %}
+
+{% block content %}
+<style>
+  /* Hiệu ứng đẹp cho card và bảng */
+  .card {
+    border-radius: 16px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+  }
+
+  /* Giới hạn chiều cao bảng + thanh cuộn dọc */
+  .table-container {
+    max-height: 580px;
+    overflow-y: auto;
+    border-radius: 8px;
+  }
+
+  /* Làm đẹp thanh cuộn */
+  .table-container::-webkit-scrollbar {
+    width: 8px;
+  }
+  .table-container::-webkit-scrollbar-thumb {
+    background-color: #0d6efd;
+    border-radius: 4px;
+  }
+
+  /* Hiệu ứng hover từng hàng */
+  table tbody tr:hover {
+    background-color: #f1f8ff;
+    transition: 0.2s ease;
+  }
+
+  /* Cải thiện hiển thị trên mobile */
+  @media (max-width: 768px) {
+    .d-flex.gap-2 {
+      flex-direction: column;
+    }
+    form input {
+      width: 100%;
+    }
+    form button {
+      width: 100%;
+    }
+  }
+</style>
+
+<div class="card shadow-sm p-4 bg-white">
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+    <h2 class="text-primary mb-3">📖 Quản lý Thể loại</h2>
+  </div>
+
+  <!-- Form thêm thể loại -->
+  <form method="POST" action="{{ url_for('add_type') }}" class="d-flex gap-2 mb-4 flex-wrap">
+    <input type="text" name="name" class="form-control" placeholder="Nhập tên thể loại mới..." required>
+    <button type="submit" class="btn btn-success px-4">➕ Thêm</button>
+  </form>
+
+  <!-- Bảng thể loại có thanh cuộn -->
+  <div class="table-container">
+    <table class="table table-hover align-middle table-bordered mb-0">
+      <thead class="table-primary text-center sticky-top">
+        <tr>
+          <th style="width: 10%;">ID</th>
+          <th style="width: 65%;">Tên thể loại</th>
+          <th style="width: 25%;">Hành động</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in types %}
+        <tr>
+          <td class="text-center fw-semibold">{{ t.id }}</td>
+          <td>{{ t.name }}</td>
+          <td class="text-center">
+            <a href="{{ url_for('edit_type', id=t.id) }}" class="btn btn-warning btn-sm me-1">✏️ Sửa</a>
+            <a href="{{ url_for('delete_type', id=t.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('Bạn có chắc muốn xóa thể loại này?')">🗑 Xóa</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="3" class="text-center text-muted py-3">Chưa có thể loại nào</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

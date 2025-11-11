@@ -1,0 +1,40 @@
+{% extends "admin.html" %}
+{% block content %}
+<div class="card shadow-sm p-4 bg-white">
+  <h2 class="text-primary mb-3">📊 Thống kê hệ thống</h2>
+
+  <div class="row text-center mb-4">
+    <div class="col-md-4">
+      <div class="p-3 bg-success text-white rounded">
+        <h4>{{ total_products }}</h4>
+        <p class="mb-0">Tổng sản phẩm</p>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="p-3 bg-info text-white rounded">
+        <h4>{{ total_orders }}</h4>
+        <p class="mb-0">Tổng đơn hàng</p>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="p-3 bg-warning text-white rounded">
+        <h4>{{ "{:,.0f}".format(total_revenue|float) }}₫</h4>
+        <p class="mb-0">Tổng doanh thu</p>
+      </div>
+    </div>
+  </div>
+
+  <h5 class="mt-4">🔥 Top 5 Sản phẩm bán chạy</h5>
+  <ul class="list-group">
+    {% for name, qty in top_selling %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      {{ name }}
+      <span class="badge bg-primary rounded-pill">{{ qty }}</span>
+    </li>
+    {% else %}
+    <li class="list-group-item text-muted text-center">Chưa có dữ liệu</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}
+

@@ -1,0 +1,19 @@
+{% extends "admin.html" %}
+
+{% block content %}
+<div class="card shadow-sm p-4 bg-white">
+  <h2 class="text-primary mb-3">📝 Sửa thể loại</h2>
+
+  <form method="POST">
+    <div class="mb-3">
+      <label class="form-label fw-bold">Tên thể loại mới</label>
+      <input type="text" name="name" class="form-control" value="{{ type_item.name }}" required>
+    </div>
+
+    <div class="d-flex justify-content-between mt-4">
+      <a href="{{ url_for('admin_type') }}" class="btn btn-secondary">⬅️ Quay lại</a>
+      <button type="submit" class="btn btn-success">💾 Cập nhật</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

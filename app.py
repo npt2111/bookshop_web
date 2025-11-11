@@ -120,8 +120,17 @@ def admin():
 
 @app.route("/admin/product")
 def product():
+    search = request.args.get("search", "").strip().lower()
     res = supabase.table("inventory").select("*").order("id", desc=False).execute()
     products = res.data or []
+
+    if search:
+        products = [
+            p for p in products
+            if search in (p.get("product") or "").lower()
+            or search in (p.get("author") or "").lower()
+        ]
+
     msg = request.args.get("msg")
     return render_template("admin/product.html", products=products, msg=msg)
 # -------------------------
@@ -130,6 +139,8 @@ def product():
 import time
 import os
 from werkzeug.utils import secure_filename
+
+
 
 @app.route("/admin/add", methods=["GET", "POST"])
 def add_product():
@@ -483,6 +494,74 @@ def update_order_status(order_id):
     supabase.table("orders").update({"status": "accept"}).eq("order_id", order_id).execute()
 
     return redirect(url_for("admin_orders"))
+# -------------------------
+#  Quản lý thể loại
+# -------------------------
+@app.route("/admin/type")
+def admin_type():
+    res = supabase.table("type_book").select("*").order("id", desc=False).execute()
+    types = res.data or []
+    msg = request.args.get("msg")
+    return render_template("admin/type.html", types=types, msg=msg)
+@app.route("/admin/type/add", methods=["POST"])
+def add_type():
+    name = request.form.get("name")
+    if name:
+        supabase.table("type_book").insert({"name": name}).execute()
+        return redirect(url_for("admin_type", msg="✅ Thêm thể loại thành công!"))
+    return redirect(url_for("admin_type", msg="⚠️ Tên thể loại không được để trống!"))
+
+@app.route("/admin/type/edit/<int:id>", methods=["GET", "POST"])
+def edit_type(id):
+    # Nếu form được gửi lên
+    if request.method == "POST":
+        new_name = request.form.get("name")
+        if new_name:
+            supabase.table("type_book").update({"name": new_name}).eq("id", id).execute()
+            return redirect(url_for("admin_type", msg="📝 Cập nhật thể loại thành công!"))
+        return redirect(url_for("admin_type", msg="⚠️ Tên thể loại không được để trống!"))
+
+    # Lấy dữ liệu cũ để hiển thị trong form sửa
+    t = supabase.table("type_book").select("*").eq("id", id).single().execute().data
+    return render_template("admin/edit_type.html", type_item=t)
+
+
+@app.route("/admin/type/delete/<int:id>")
+def delete_type(id):
+    supabase.table("type_book").delete().eq("id", id).execute()
+    return redirect(url_for("admin_type", msg="🗑️ Xóa thể loại thành công!"))
+
+@app.route("/admin/stats")
+def admin_stats():
+    # Tổng sản phẩm
+    total_products = len(supabase.table("inventory").select("id").execute().data or [])
+
+    # Tổng đơn hàng
+    total_orders = len(supabase.table("orders").select("id").execute().data or [])
+
+    # Tổng doanh thu từ đơn hàng đã duyệt
+    accepted_orders = supabase.table("orders").select("total_amount").eq("status", "accept").execute().data or []
+    total_revenue = sum(o.get("total_amount", 0) for o in accepted_orders)
+
+    # Top 5 sản phẩm bán chạy
+    all_orders = supabase.table("orders").select("product").eq("status", "accept").execute().data or []
+    sales_count = {}
+    for order in all_orders:
+        products = order.get("product")
+        if isinstance(products, str):
+            products = json.loads(products)
+        for p in products:
+            name = p.get("name")
+            qty = p.get("quantity", 0)
+            sales_count[name] = sales_count.get(name, 0) + qty
+
+    top_selling = sorted(sales_count.items(), key=lambda x: x[1], reverse=True)[:5]
+
+    return render_template("admin/stats.html",
+                           total_products=total_products,
+                           total_orders=total_orders,
+                           total_revenue=total_revenue,
+                           top_selling=top_selling)
 
 # -------------------------
 #  Run

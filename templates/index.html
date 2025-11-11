@@ -206,7 +206,7 @@
           <h5 class="card-title">{{ item.product }}</h5>
           <p class="text-muted mb-1">Tác giả: {{ item.author or 'Đang cập nhật' }}</p>
           <p class="text-muted mb-1">Thể loại: <span class="badge bg-primary">{{ item.type or 'Khác' }}</span></p>
-          <p class="price">💰 {{ item.price | default(0) }} VND</p>
+          <p class="price">{{ item.price | default(0) }} VND</p>
           <a href="{{ url_for('product_detail', product_id=item.id) }}" class="btn btn-outline-info w-75 mb-2">🔍 Chi tiết</a>
           <a href="{{ url_for('add_to_cart', product_id=item.id) }}" class="btn btn-outline-primary w-75">
               🛒 Thêm vào giỏ
