@@ -448,9 +448,20 @@ def process_checkout():
 # -------------------------
 @app.route("/admin/orders")
 def admin_orders():
+    search_query = request.args.get("search", "").strip().lower()
+
     res = supabase.table("orders").select("*").order("id", desc=True).execute()
     orders = res.data or []
-    return render_template("admin/orders.html", orders=orders)
+
+    if search_query:
+        orders = [
+            o for o in orders
+            if search_query in (o.get("order_id") or "").lower()
+            or search_query in (o.get("name") or "").lower()
+            or search_query in (o.get("email") or "").lower()
+        ]
+
+    return render_template("admin/orders.html", orders=orders, search_query=search_query)
 
 
 
