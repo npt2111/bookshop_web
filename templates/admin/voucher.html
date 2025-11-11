@@ -1,0 +1,62 @@
+{% extends "admin.html" %}
+{% block content %}
+
+<style>
+  .table-responsive {
+    max-height: 650px;
+    overflow-y: auto;
+  }
+  thead th {
+    position: sticky;
+    top: 0;
+    background: #0d6efd;
+    color: white;
+    z-index: 5;
+  }
+</style>
+
+<div class="card shadow-sm p-4 bg-white">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
+    <h2 class="text-primary mb-2">📉 Quản lý Mã giảm giá</h2>
+
+    <form method="POST" action="{{ url_for('add_voucher') }}" class="d-flex gap-2">
+      <input type="text" name="name_voucher" class="form-control" placeholder="Tên mã giảm giá" required>
+      <input type="number" name="percent" class="form-control" placeholder="% giảm" min="1" max="100" required>
+      <input type="number" name="quantity" class="form-control" placeholder="Số lượng" min="1" required>
+      <button type="submit" class="btn btn-success">➕ Thêm</button>
+    </form>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle text-center">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Tên mã</th>
+          <th>% Giảm</th>
+          <th>Số lượng</th>
+          <th>Hành động</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in vouchers %}
+        <tr>
+          <td>{{ v.id }}</td>
+          <td>{{ v.name_voucher }}</td>
+          <td class="text-danger fw-bold">{{ v.percent }}%</td>
+          <td>{{ v.quantity }}</td>
+          <td>
+            <a href="{{ url_for('edit_voucher', id=v.id) }}" class="btn btn-warning btn-sm">✏️ Sửa</a>
+            <a href="{{ url_for('delete_voucher', id=v.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('Xóa mã này?')">🗑 Xóa</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-muted">Chưa có mã giảm giá nào</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+

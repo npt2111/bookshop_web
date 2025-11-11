@@ -263,5 +263,48 @@
 
     
   </script>
+  <!-- 🎡 Nút nổi Vòng quay may mắn -->
+<a href="{{ url_for('lucky_spin') }}" class="lucky-float-btn" title="Vòng quay may mắn 🎁">
+  🎡
+</a>
+
+<style>
+  /* 🔥 Floating Button */
+  .lucky-float-btn {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: linear-gradient(135deg, #ff9800, #ff5722);
+    color: white;
+    font-size: 28px;
+    text-align: center;
+    text-decoration: none;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    line-height: 60px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+    z-index: 999;
+  }
+
+  .lucky-float-btn:hover {
+    transform: scale(1.1) rotate(10deg);
+    background: linear-gradient(135deg, #ffb300, #f44336);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+  }
+
+  @media (max-width: 768px) {
+    .lucky-float-btn {
+      bottom: 20px;
+      right: 20px;
+      font-size: 24px;
+      width: 55px;
+      height: 55px;
+      line-height: 55px;
+    }
+  }
+</style>
+
 </body>
 </html>

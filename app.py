@@ -573,6 +573,55 @@ def admin_stats():
                            total_orders=total_orders,
                            total_revenue=total_revenue,
                            top_selling=top_selling)
+# -------------------------
+# 📉 Quản lý mã giảm giá (Voucher)
+# -------------------------
+@app.route("/admin/voucher")
+def admin_voucher():
+    vouchers = supabase.table("voucher").select("*").order("id", desc=True).execute().data or []
+    return render_template("admin/voucher.html", vouchers=vouchers)
+
+@app.route("/admin/voucher/add", methods=["POST"])
+def add_voucher():
+    name = request.form.get("name_voucher")
+    percent = request.form.get("percent")
+    quantity = request.form.get("quantity")
+
+    if name and percent and quantity:
+        supabase.table("voucher").insert({
+            "name_voucher": name.strip(),
+            "percent": float(percent),
+            "quantity": int(quantity)
+        }).execute()
+
+    return redirect(url_for("admin_voucher"))
+
+@app.route("/admin/voucher/delete/<int:id>")
+def delete_voucher(id):
+    supabase.table("voucher").delete().eq("id", id).execute()
+    return redirect(url_for("admin_voucher"))
+
+@app.route("/admin/voucher/edit/<int:id>", methods=["GET", "POST"])
+def edit_voucher(id):
+    if request.method == "POST":
+        name = request.form.get("name_voucher")
+        percent = request.form.get("percent")
+        quantity = request.form.get("quantity")
+        supabase.table("voucher").update({
+            "name_voucher": name.strip(),
+            "percent": float(percent),
+            "quantity": int(quantity)
+        }).eq("id", id).execute()
+        return redirect(url_for("admin_voucher"))
+
+    voucher = supabase.table("voucher").select("*").eq("id", id).single().execute().data
+    return render_template("admin/edit_voucher.html", voucher=voucher)
+
+
+
+@app.route("/lucky_spin")
+def lucky_spin():
+    return render_template("lucky_spin.html")
 
 # -------------------------
 #  Run
