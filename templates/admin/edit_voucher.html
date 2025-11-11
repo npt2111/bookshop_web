@@ -1,0 +1,28 @@
+{% extends "admin.html" %}
+{% block content %}
+<div class="card shadow-sm p-4 bg-white" style="max-width: 600px; margin: auto;">
+  <h3 class="text-primary mb-3 text-center">✏️ Cập nhật Mã giảm giá</h3>
+
+  <form method="POST">
+    <div class="mb-3">
+      <label class="form-label">Tên mã giảm giá</label>
+      <input type="text" name="name_voucher" value="{{ voucher.name_voucher }}" class="form-control" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">% Giảm</label>
+      <input type="number" name="percent" value="{{ voucher.percent }}" class="form-control" min="1" max="100" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Số lượng</label>
+      <input type="number" name="quantity" value="{{ voucher.quantity }}" class="form-control" min="1" required>
+    </div>
+
+    <div class="text-center">
+      <button type="submit" class="btn btn-primary">💾 Lưu thay đổi</button>
+      <a href="{{ url_for('admin_voucher') }}" class="btn btn-secondary">Hủy</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
