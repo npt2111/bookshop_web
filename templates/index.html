@@ -130,26 +130,21 @@
     footer strong {
       color: #ffc107;
     }
-    /* 🧭 Dropdown hiển thị khi hover */
-    .nav-item.dropdown:hover .dropdown-menu {
-      display: block;
-      margin-top: 0; /* tránh bị lệch */
-      animation: fadeIn 0.2s ease-in-out;
-    }
 
-    /* ✨ Hiệu ứng hiện mượt */
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-5px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* 🎨 Trang trí thêm */
+    /* ✨ FIX DROPDOWN - Click để mở menu */
     .dropdown-menu {
       border-radius: 10px;
       padding: 8px 0;
       background-color: #fff;
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+      position: absolute !important;
+      top: 100% !important;
+      margin-top: 8px !important;
+      z-index: 1001 !important;
+      min-width: 200px;
+      pointer-events: auto !important;
     }
+
     .dropdown-item:hover {
       background-color: #f0f4ff;
       color: #0d6efd;
@@ -180,9 +175,15 @@
             </a>
           </li>
           {% if session.get('email') %}
-          <li class="nav-item dropdown me-2">
-            <a class="nav-link dropdown-toggle text-light fw-semibold" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-              👤 {{ session.get('name', 'Khách') }}
+          <li class="nav-item dropdown me-2 d-flex align-items-center">
+            <a class="nav-link dropdown-toggle text-light fw-semibold d-flex align-items-center" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              {% set avatar = session.get('avatar') %}
+              {% if avatar %}
+                <img src="{{ avatar }}" alt="avatar" style="width:28px;height:28px;object-fit:cover;border-radius:50%;margin-right:8px;" onerror="this.src='https://via.placeholder.com/28x28?text=U'"/>
+              {% else %}
+                👤
+              {% endif %}
+              {{ session.get('name', 'Khách') }}
             </a>
             <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown">
               <li><a class="dropdown-item" href="{{ url_for('profile') }}">Hồ sơ cá nhân</a></li>
@@ -418,6 +419,50 @@
     }
   }
 </style>
+
+<script>
+  // ✨ Xử lý dropdown click thay vì hover
+  document.addEventListener('DOMContentLoaded', function() {
+    const dropdowns = document.querySelectorAll('.nav-item.dropdown');
+    
+    dropdowns.forEach(dropdown => {
+      const toggle = dropdown.querySelector('.dropdown-toggle');
+      const menu = dropdown.querySelector('.dropdown-menu');
+      
+      if (!toggle || !menu) return;
+      
+      // Khi click vào toggle
+      toggle.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Toggle hiển thị/ẩn menu
+        const isOpen = menu.style.display === 'block';
+        menu.style.display = isOpen ? 'none' : 'block';
+      });
+      
+      // Khi click vào các item trong menu
+      const items = menu.querySelectorAll('.dropdown-item');
+      items.forEach(item => {
+        item.addEventListener('click', function() {
+          menu.style.display = 'none'; // Ẩn menu sau khi bấm
+        });
+      });
+    });
+    
+    // Khi click ở ngoài dropdown thì ẩn menu
+    document.addEventListener('click', function(e) {
+      dropdowns.forEach(dropdown => {
+        if (!dropdown.contains(e.target)) {
+          const menu = dropdown.querySelector('.dropdown-menu');
+          if (menu) {
+            menu.style.display = 'none';
+          }
+        }
+      });
+    });
+  });
+</script>
 
 </body>
 
