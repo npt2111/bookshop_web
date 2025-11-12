@@ -793,12 +793,14 @@ def update_order_status(order_id):
     for item in products:
         product_id = item.get("id")
         qty_ordered = item.get("quantity", 0)
+        sold_qty = item.get("sold", 0)
         # Lấy tồn kho hiện tại
         res_inv = supabase.table("inventory").select("quantity").eq("id", product_id).single().execute()
         if res_inv.data:
             current_qty = res_inv.data.get("quantity", 0)
             new_qty = max(0, current_qty - qty_ordered)
-            supabase.table("inventory").update({"quantity": new_qty}).eq("id", product_id).execute()
+            new_sold = max(0, sold_qty + qty_ordered)
+            supabase.table("inventory").update({"quantity": new_qty, "sold": new_sold}).eq("id", product_id).execute()
 
     # Cập nhật trạng thái order
     supabase.table("orders").update({"status": "accept"}).eq("order_id", order_id).execute()

@@ -9,8 +9,8 @@ const closeChatbot = document.querySelector("#close-chatbot");
 
 
 // Api setup
-const API_KEY = "ĐIỀN API KEY CỦA BẠN VÀO ĐÂY"; // LINK LẤY API KEY: https://aistudio.google.com/apikey
-const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
+const API_KEY = "AIzaSyAkJjPwJATzMBva8qCpjBhZ4SPWxvR9crw"; // LINK LẤY API KEY: https://aistudio.google.com/apikey
+const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
 
 const userData = {
     message: null,
@@ -20,17 +20,28 @@ const userData = {
     }
 };
 
-// const chatHistory = [
-//     {
-//         role: "model",
-//         parts: [{ text: `Đinh Duy Vinh (2005), chàng sinh viên đến từ Quảng Ngãi, hiện đang theo học tại Đại học Duy Tân, Đà Nẵng, là một người trẻ đam mê công nghệ và lập trình. Từ thuở nhỏ, Vinh đã có niềm đam mê mãnh liệt với các thiết bị điện tử và luôn muốn tìm hiểu mọi thứ xung quanh. Chính sự tò mò này đã đưa anh đến với thế giới lập trình ngay từ những năm cấp 3, đặc biệt là trong thời gian giãn cách xã hội do dịch COVID-19. Với thời gian rảnh rỗi, Vinh bắt đầu tự học lập trình web, và rồi từ những dự án nhỏ ban đầu, anh đã phát triển được những sản phẩm hữu ích cho cộng đồng.
-// Những dự án mà Vinh thực hiện không chỉ đơn giản là những sản phẩm công nghệ mà còn là minh chứng cho sự sáng tạo và khả năng giải quyết vấn đề của anh. Anh đã tự tay xây dựng một loạt các dự án đa dạng như hệ thống quản lý sinh viên, web game giải trí, website chống lừa đảo, trang web tải ảnh từ Imgur, công cụ tạo mã QR code, dự báo thời tiết trực tuyến, và cả extension Chrome giúp đánh giá nhanh giảng viên của trường Đại học Duy Tân. Không dừng lại ở đó, Vinh còn đắm chìm vào việc khai thác API từ các mạng xã hội như Instagram, Facebook, TikTok và Zalo để lấy thông tin người dùng. Anh cũng đã thử sức với việc tạo module iOS để crack ứng dụng Locket, phát triển API tải video từ TikTok, tạo web chuyển đổi 2FA, và không thể không nhắc đến các bot Telegram mà Vinh viết để tự động hóa các tác vụ một cách hiệu quả.
-// Vinh không chỉ giỏi trong việc phát triển các dự án công nghệ mà còn luôn mong muốn chia sẻ những gì mình học được với cộng đồng. Kênh YouTube của anh (YouTube: @duyvinh09) là nơi anh chia sẻ những mẹo, thủ thuật và tiện ích cực kỳ hữu ích mà anh đã tự tìm ra, giúp đỡ mọi người trong hành trình học hỏi công nghệ. Ngoài YouTube, Vinh cũng kết nối và chia sẻ kiến thức qua các nền tảng khác như GitHub (GitHub: duyvinh09) và Facebook (Facebook: duyvinh09), nơi anh luôn sẵn sàng giao lưu, học hỏi từ cộng đồng và giúp đỡ những người có chung niềm đam mê. Đặc biệt, Vinh còn sở hữu một nhóm chat trên Telegram, nơi anh và các bạn có thể trao đổi kiến thức, cùng nhau phát triển và học hỏi từ những người đi trước.
-// Với một portfolio đầy ấn tượng tại duyvinh09.github.io và dinhduyvinh.eu.org, Vinh không ngừng khẳng định khả năng của mình qua mỗi dự án. Anh là một chàng trai luôn nỗ lực học hỏi, phát triển và sẵn sàng chia sẻ với cộng đồng những gì anh biết. Với tinh thần sáng tạo không ngừng nghỉ và sự nhiệt huyết trong từng dự án, Đinh Duy Vinh chắc chắn sẽ còn đạt được nhiều thành công và tiếp tục là nguồn cảm hứng cho thế hệ trẻ đam mê công nghệ.` }],
-//     },
-// ];
+    const chatHistory = [
+    {
+        role: "model",
+        parts: [{
+        text: `
+            Bạn là **BookBot**, trợ lý AI của cửa hàng sách trực tuyến **TVTBookshop**.
+            Nhiệm vụ của bạn:
+            - Tư vấn khách hàng chọn sách phù hợp theo thể loại, sở thích, độ tuổi, mục đích học tập.
+            - Cung cấp thông tin chi tiết về sách: tên, tác giả, mô tả, giá bán.
+            - Giới thiệu các chương trình khuyến mãi, combo ưu đãi, hoặc sách nổi bật trong tháng.
+            - Giữ phong cách nói chuyện thân thiện, chuyên nghiệp, không lan man.
+            - Nếu người dùng hỏi ngoài chủ đề, hãy khéo léo hướng họ quay lại chủ đề sách.
 
-const chatHistory = [];
+            Ví dụ:
+            Khách: "Mình muốn tìm sách của Nguyễn Nhật Ánh"
+            Bạn: "Tuyệt vời! Hiện TVTBookshop có các tựa nổi bật của Nguyễn Nhật Ánh như *Tôi thấy hoa vàng trên cỏ xanh*, *Mắt biếc*, *Cho tôi xin một vé đi tuổi thơ*, và *Còn chút gì để nhớ*. Bạn muốn mình gợi ý thêm về nội dung hay giá bán ạ?"
+                `
+        }]
+    }
+    ];
+
+// const chatHistory = [];
 
 const initialInputHeight = messageInput.scrollHeight;
 

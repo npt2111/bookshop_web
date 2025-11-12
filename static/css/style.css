@@ -16,11 +16,11 @@ body {
 
 #chatbot-toggler {
     position: fixed;
-    bottom: 30px;
-    right: 35px;
+    bottom: 100px;
+    right: 30px;
     border: none;
-    height: 50px;
-    width: 50px;
+    height: 60px;
+    width: 60px;
     display: flex;
     cursor: pointer;
     align-items: center;
@@ -51,8 +51,8 @@ body.show-chatbot #chatbot-toggler span:last-child {
 
 .chatbot-popup {
     position: fixed;
-    right: 35px;
-    bottom: 90px;
+    right: 70px;
+    bottom: 160px;
     width: 420px;
     overflow: hidden;
     background: #fff;
