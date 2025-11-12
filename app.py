@@ -1,6 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from supabase import create_client
 from werkzeug.utils import secure_filename
+from dotenv import load_dotenv
 
 from flask_session import Session
 from datetime import timedelta
@@ -9,7 +10,22 @@ import requests
 import random
 from datetime import datetime
 import json
+from momo_payment import MomoPayment
+
+# Load environment variables
+load_dotenv()
+
 app = Flask(__name__)
+
+# -------------------------
+# Momo Payment Setup
+# -------------------------
+MOMO_PARTNER_CODE = os.environ.get("MOMO_PARTNER_CODE", "")
+MOMO_ACCESS_KEY = os.environ.get("MOMO_ACCESS_KEY", "")
+MOMO_SECRET_KEY = os.environ.get("MOMO_SECRET_KEY", "")
+MOMO_PARTNER_NAME = os.environ.get("MOMO_PARTNER_NAME", "TVTBookShop")
+
+momo = MomoPayment(MOMO_PARTNER_CODE, MOMO_ACCESS_KEY, MOMO_SECRET_KEY, MOMO_PARTNER_NAME)
 
 # -------------------------
 # Make session available in all Jinja templates
@@ -129,6 +145,8 @@ def login():
                 session['name'] = customer.get('name', '')
                 session['phone'] = customer.get('phone', '')
                 session['role'] = customer.get('role', '')
+                # Lấy avatar từ DB nếu có
+                session['avatar'] = customer.get('avatar_url', '')
                 flash('Đăng nhập thành công!')
                 return redirect(url_for('index'))
             else:
@@ -432,6 +450,19 @@ def product_detail(product_id):
         print(f"🔍 Fetching reviews for product {product_id}...")
         res_reviews = supabase.table("reviews").select("*").eq("id_product", product_id).order("id", desc=True).execute()
         reviews = res_reviews.data or []
+        
+        # Thêm avatar_url từ bảng customer dựa trên email
+        for review in reviews:
+            email = review.get('email')
+            if email:
+                try:
+                    customer_data = supabase.table("customer").select("avatar_url").eq("email", email).single().execute().data
+                    review['avatar_url'] = customer_data.get('avatar_url', '') if customer_data else ''
+                except:
+                    review['avatar_url'] = ''
+            else:
+                review['avatar_url'] = ''
+        
         print(f"✅ Found {len(reviews)} reviews")
     except Exception as e:
         print(f"❌ Error fetching reviews: {str(e)}")
@@ -439,6 +470,7 @@ def product_detail(product_id):
     
     # Kiểm tra xem user đã mua sản phẩm này chưa (nếu logged in)
     user_has_purchased = False
+    user_has_reviewed = False
     user_orders = []
     if 'email' in session:
         try:
@@ -464,8 +496,17 @@ def product_detail(product_id):
         except Exception as e:
             print(f"❌ Error checking purchase history: {str(e)}")
             pass
+        
+        # Kiểm tra xem user đã review sản phẩm này chưa
+        try:
+            existing_review = supabase.table("reviews").select("id").eq("id_product", product_id).eq("email", session.get('email')).execute()
+            user_has_reviewed = len(existing_review.data) > 0
+            print(f"👤 User {session.get('email')} review status: {user_has_reviewed}")
+        except Exception as e:
+            print(f"❌ Error checking review status: {str(e)}")
+            user_has_reviewed = False
     
-    return render_template("product_detail.html", product=product, reviews=reviews, user_has_purchased=user_has_purchased, user_orders=user_orders)
+    return render_template("product_detail.html", product=product, reviews=reviews, user_has_purchased=user_has_purchased, user_has_reviewed=user_has_reviewed, user_orders=user_orders)
       
 
 # -------------------------
@@ -518,18 +559,17 @@ def add_review():
             flash(error_msg)
             return redirect(url_for('product_detail', product_id=product_id))
         
-        # Chuẩn bị dữ liệu
+        # Chuẩn bị dữ liệu (chỉ lưu cột có trong DB: order_id, name, email, rating, comment, id_product)
         review_data = {
             "id_product": product_id,
             "order_id": order_id if order_id else None,
             "rating": rating,
             "comment": comment,
             "name": name if name else "Anonymous",
-            "email": email,
-            "created_at": datetime.utcnow().isoformat()
+            "email": email
         }
         
-        print(f"\n� Attempting to save review:")
+        print(f"\n📝 Attempting to save review:")
         print(f"  {review_data}")
         
         # Try to insert
@@ -554,6 +594,58 @@ def add_review():
             return redirect(url_for('index'))
     finally:
         print("="*60 + "\n")
+
+
+# -------------------------
+# Upload avatar for profile
+# -------------------------
+@app.route('/upload_avatar', methods=['POST'])
+@login_required
+def upload_avatar():
+    file = request.files.get('avatar')
+    if not file or not file.filename:
+        flash('Vui lòng chọn file ảnh để tải lên.')
+        return redirect(url_for('profile'))
+
+    # Basic validation: extension
+    ALLOWED = {'png', 'jpg', 'jpeg', 'gif'}
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    if ext not in ALLOWED:
+        flash('Định dạng ảnh không hợp lệ. Vui lòng dùng png/jpg/jpeg/gif.')
+        return redirect(url_for('profile'))
+
+    try:
+        # Ensure upload folder exists
+        AVATAR_FOLDER = os.path.join(app.config['UPLOAD_FOLDER'], 'avatars')
+        os.makedirs(AVATAR_FOLDER, exist_ok=True)
+
+        # Save file with unique name
+        filename = f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
+        filepath = os.path.join(AVATAR_FOLDER, filename)
+        file.save(filepath)
+
+        # Create relative URL for avatar
+        avatar_url = f"/static/uploads/avatars/{filename}"
+
+        # Update DB - save avatar_url to customer table
+        email = session.get('email')
+        if email:
+            try:
+                supabase.table('customer').update({'avatar_url': avatar_url}).eq('email', email).execute()
+                print(f"✅ Avatar URL saved to DB: {avatar_url}")
+            except Exception as e:
+                print(f'⚠️ Warning: could not update avatar_url in DB: {e}')
+
+        # Update session
+        session['avatar'] = avatar_url
+        session.modified = True
+        
+        flash('✅ Tải avatar lên thành công!')
+    except Exception as e:
+        print('❌ Lỗi khi upload avatar:', e)
+        flash('Lỗi khi tải avatar lên. Vui lòng thử lại.')
+
+    return redirect(url_for('profile'))
 
 
 # -------------------------
@@ -684,6 +776,9 @@ def checkout_selected():
     session.modified = True
 
     total = sum(item["price"] * item["quantity"] for item in selected_items)
+    
+    # Tính lại total chính xác
+    total = sum(item["price"] * item["quantity"] for item in selected_items)
     return render_template("checkout_form.html", items=selected_items, total=total)
 
 # Xử lý thanh toán
@@ -694,8 +789,22 @@ def process_checkout():
     phone = request.form.get("phone")
     address = request.form.get("address")
     note = request.form.get("note")
+    payment_method = request.form.get("payment_method", "cod")
+    action = request.form.get("action", "cod")  # Kiểm tra nút nào được bấm
 
+    # Lấy items từ session (ưu tiên)
     items = session.get("checkout_items", [])
+    
+    # Nếu không có trong session, lấy từ form (JSON)
+    if not items:
+        import json
+        items_json = request.form.get("checkout_items", "[]")
+        try:
+            items = json.loads(items_json)
+        except json.JSONDecodeError:
+            print(f"❌ JSON Parse Error: {items_json}")
+            return render_template("checkout_error.html", error="Lỗi dữ liệu sản phẩm. Vui lòng thử lại!")
+    
     if not items:
         return render_template("checkout_error.html", error="Không có sản phẩm nào để thanh toán!")
 
@@ -708,7 +817,7 @@ def process_checkout():
         if not exists.data:
             break
 
-    # Lưu đơn hàng vào Supabase (cột product phải là JSONB)
+    # Lưu đơn hàng vào Supabase
     supabase.table("orders").insert({
         "order_id": order_id,
         "name": name,
@@ -722,24 +831,227 @@ def process_checkout():
         "created_at": datetime.utcnow().isoformat()
     }).execute()
 
-    # Gửi webhook về n8n
-    try:
-        WEBHOOK_URL = "https://n8n.nocodelowcode.id.vn/webhook-test/checkout"
-        requests.post(WEBHOOK_URL, json={"order_id": order_id, "customer": {
-            "name": name, "email": email, "phone": phone, "address": address, "note": note
-        }, "order": {"items": items, "total": total}}, timeout=10)
-    except:
-        print("⚠️ Gửi webhook thất bại nhưng đơn đã lưu vào Supabase.")
+    # Nếu chọn COD
+    if action == "cod":
+        # Xóa sản phẩm đã checkout ra khỏi giỏ hàng
+        cart = session.get("cart", [])
+        remaining_cart = [item for item in cart if item not in items]
+        session["cart"] = remaining_cart
+        session.modified = True
+        session.pop("checkout_items", None)
+        
+        # Gửi webhook về n8n
+        try:
+            WEBHOOK_URL = "https://n8n.nocodelowcode.id.vn/webhook-test/checkout"
+            requests.post(WEBHOOK_URL, json={"order_id": order_id, "customer": {
+                "name": name, "email": email, "phone": phone, "address": address, "note": note
+            }, "order": {"items": items, "total": total}}, timeout=10)
+        except:
+            print("⚠️ Gửi webhook thất bại nhưng đơn đã lưu vào Supabase.")
+        
+        return render_template("checkout_success.html", order_id=order_id, customer=name, total=total)
+    
+    # Nếu chọn Momo
+    elif action == "momo":
+        print(f"🔴 Starting Momo payment process...")
+        print(f"🔴 MOMO_PARTNER_CODE: {MOMO_PARTNER_CODE}")
+        print(f"🔴 MOMO_ACCESS_KEY: {MOMO_ACCESS_KEY}")
+        print(f"🔴 MOMO_SECRET_KEY: {MOMO_SECRET_KEY}")
+        
+        if not (MOMO_PARTNER_CODE and MOMO_ACCESS_KEY and MOMO_SECRET_KEY):
+            print(f"❌ Momo credentials missing!")
+            flash("❌ Momo chưa được cấu hình. Vui lòng chọn COD")
+            return redirect(url_for("cart"))
+        
+        try:
+            # Khởi tạo thanh toán Momo
+            print(f"🟡 Initializing Momo payment...")
+            return_url = url_for("payment_callback", _external=True)
+            notify_url = url_for("payment_notify", _external=True)
+            print(f"🟡 Return URL: {return_url}")
+            print(f"🟡 Notify URL: {notify_url}")
+            
+            response = momo.create_payment(
+                order_id=order_id,
+                amount=int(total),
+                order_info=f"Thanh toán đơn hàng {order_id}",
+                customer_name=name,
+                customer_phone=phone,
+                return_url=return_url,
+                notify_url=notify_url
+            )
+            
+            print(f"✅ Momo Response: {response}")
+            print(f"📋 Response Type: {type(response)}")
+            print(f"📋 Response Keys: {response.keys() if isinstance(response, dict) else 'Not a dict'}")
+            
+            # Kiểm tra các trường response từ Momo
+            result_code = response.get("resultCode")
+            pay_url = response.get("payUrl")
+            qr_code = response.get("qrCodeUrl")
+            
+            print(f"🔍 Debug - Result Code: {result_code}")
+            print(f"🔍 Debug - Pay URL: {pay_url}")
+            print(f"🔍 Debug - QR Code: {qr_code}")
+            
+            if result_code == 0 and pay_url:
+                # Lưu thông tin thanh toán vào session
+                session["momo_payment"] = {
+                    "order_id": order_id,
+                    "pay_url": pay_url,
+                    "qr_code": qr_code,
+                    "total": total,
+                    "customer_name": name,
+                    "customer_email": email,
+                    "customer_phone": phone,
+                    "customer_address": address,
+                    "items": items
+                }
+                session.modified = True
+                print(f"✅ Momo session saved: {session.get('momo_payment')}")
+                
+                # Redirect tới giao diện thanh toán Momo
+                return redirect(url_for("momo_payment_page"))
+            else:
+                error_msg = response.get("message") or response.get("error") or "Không xác định"
+                print(f"❌ Momo Error Details: {response}")
+                flash(f"❌ Lỗi Momo: {error_msg}")
+                return redirect(url_for("cart"))
+        
+        except Exception as e:
+            print(f"❌ Momo error: {str(e)}")
+            flash(f"❌ Lỗi thanh toán: {str(e)}")
+            return redirect(url_for("cart"))
 
-    # Xóa sản phẩm đã checkout ra khỏi giỏ hàng
-    cart = session.get("cart", [])
-    remaining_cart = [item for item in cart if item not in items]
-    session["cart"] = remaining_cart
-    session.modified = True
-    # Xóa giỏ hàng tạm
+
+# -------------------------
+#  Thanh toán Momo
+# -------------------------
+@app.route("/momo_payment")
+def momo_payment_page():
+    """Hiển thị giao diện thanh toán Momo"""
+    import json
+    import qrcode
+    from io import BytesIO
+    import base64
+    
+    print(f"🔍 Accessing /momo_payment")
+    print(f"🔍 Session keys: {session.keys()}")
+    print(f"🔍 momo_payment in session: {'momo_payment' in session}")
+    
+    momo_payment = session.get("momo_payment")
+    print(f"🔍 momo_payment value: {momo_payment}")
+    
+    if not momo_payment:
+        print(f"❌ momo_payment không tồn tại trong session")
+        flash("❌ Phiên thanh toán hết hạn. Vui lòng thử lại!")
+        return redirect(url_for("cart"))
+    
+    print(f"✅ momo_payment found, rendering template")
+    
+    # Tạo QR code từ pay_url
+    pay_url = momo_payment.get("pay_url", "")
+    qr_code_base64 = ""
+    
+    if pay_url:
+        try:
+            # Tạo QR code image
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_H,
+                box_size=10,
+                border=4,
+            )
+            qr.add_data(pay_url)
+            qr.make(fit=True)
+            
+            # Convert to PIL image
+            img = qr.make_image(fill_color="black", back_color="white")
+            
+            # Convert to base64
+            img_io = BytesIO()
+            img.save(img_io, 'PNG')
+            img_io.seek(0)
+            qr_code_base64 = base64.b64encode(img_io.getvalue()).decode()
+            print(f"✅ QR code generated successfully")
+        except Exception as e:
+            print(f"❌ Lỗi tạo QR code: {e}")
+    
+    return render_template("momo_payment.html",
+        order_id=momo_payment["order_id"],
+        qr_code_base64=qr_code_base64,
+        total=momo_payment["total"],
+        customer_name=momo_payment["customer_name"],
+        customer_email=momo_payment["customer_email"],
+        customer_phone=momo_payment["customer_phone"],
+        customer_address=momo_payment["customer_address"],
+        items=momo_payment["items"]
+    )
+
+@app.route("/confirm_momo_payment", methods=["POST"])
+def confirm_momo_payment():
+    """Xác nhận thanh toán Momo thành công"""
+    order_id = request.form.get("order_id")
+    momo_payment = session.get("momo_payment", {})
+    
+    if momo_payment.get("order_id") != order_id:
+        flash("❌ Đơn hàng không hợp lệ!")
+        return redirect(url_for("cart"))
+    
+    # Xoá session
+    session.pop("momo_payment", None)
     session.pop("checkout_items", None)
+    session.modified = True
+    
+    # Hiển thị thành công
+    return render_template("checkout_success.html",
+        order_id=order_id,
+        customer=momo_payment.get("customer_name", ""),
+        total=momo_payment.get("total", 0)
+    )
 
-    return render_template("checkout_success.html", order_id=order_id, customer=name, total=total)
+@app.route("/cancel_momo_payment", methods=["POST"])
+def cancel_momo_payment():
+    """Hủy giao dịch Momo"""
+    order_id = request.form.get("order_id")
+    
+    try:
+        # Xoá đơn hàng khỏi Supabase
+        supabase.table("orders").delete().eq("order_id", order_id).execute()
+        print(f"✅ Đã xoá đơn hàng {order_id} do hủy thanh toán")
+    except Exception as e:
+        print(f"⚠️ Lỗi xoá đơn hàng: {str(e)}")
+    
+    # Xoá session
+    session.pop("momo_payment", None)
+    session.pop("checkout_items", None)
+    session.modified = True
+    
+    flash("❌ Đã hủy giao dịch Momo. Giỏ hàng của bạn vẫn được lưu lại.")
+    return redirect(url_for("cart"))
+
+@app.route("/checkout_form_page")
+def checkout_form_page():
+    """Quay lại form checkout để đổi phương thức thanh toán"""
+    momo_payment = session.get("momo_payment")
+    
+    if not momo_payment:
+        flash("❌ Phiên thanh toán hết hạn. Vui lòng thử lại!")
+        return redirect(url_for("cart"))
+    
+    # Lưu lại checkout_items
+    session["checkout_items"] = momo_payment["items"]
+    session.modified = True
+    
+    # Xoá Momo session
+    session.pop("momo_payment", None)
+    
+    total = sum(item["price"] * item["quantity"] for item in momo_payment["items"])
+    
+    return render_template("checkout_form.html",
+        items=momo_payment["items"],
+        total=total
+    )
 
 
 # -------------------------
@@ -921,6 +1233,117 @@ def edit_voucher(id):
 @app.route("/lucky_spin")
 def lucky_spin():
     return render_template("lucky_spin.html")
+
+
+# -------------------------
+# 💳 Thanh toán Momo
+# -------------------------
+@app.route("/payment/momo", methods=["POST"])
+def payment_momo():
+    """Khởi tạo thanh toán Momo"""
+    try:
+        if 'email' not in session:
+            return jsonify({"error": "Bạn cần đăng nhập"}), 401
+        
+        # Lấy thông tin từ POST
+        order_id = request.form.get("order_id")
+        amount = int(request.form.get("amount", 0))
+        order_info = request.form.get("order_info", "Thanh toán đơn hàng")
+        customer_name = session.get("name", "Khách hàng")
+        customer_phone = session.get("phone", "0")
+        
+        if amount <= 0:
+            flash("❌ Số tiền không hợp lệ")
+            return redirect(url_for("checkout"))
+        
+        # URL return và notify
+        return_url = url_for("payment_callback", _external=True)
+        notify_url = url_for("payment_notify", _external=True)
+        
+        # Gọi Momo API
+        response = momo.create_payment(
+            order_id=order_id,
+            amount=amount,
+            order_info=order_info,
+            customer_name=customer_name,
+            customer_phone=customer_phone,
+            return_url=return_url,
+            notify_url=notify_url
+        )
+        
+        print(f"✅ Momo Response: {response}")
+        
+        # Kiểm tra response
+        if response.get("errorCode") == 0:
+            # Lưu order với status pending
+            supabase.table("orders").update({"payment_status": "pending"}).eq("id", order_id).execute()
+            
+            # Redirect tới Momo payment page
+            payment_url = response.get("payUrl")
+            if payment_url:
+                return redirect(payment_url)
+        
+        flash(f"❌ Lỗi thanh toán: {response.get('message', 'Không xác định')}")
+        return redirect(url_for("checkout"))
+    
+    except Exception as e:
+        print(f"❌ Payment error: {str(e)}")
+        flash(f"❌ Lỗi: {str(e)}")
+        return redirect(url_for("checkout"))
+
+
+@app.route("/payment/callback")
+def payment_callback():
+    """Callback từ Momo sau khi thanh toán"""
+    try:
+        order_id = request.args.get("orderId")
+        result_code = request.args.get("resultCode")
+        
+        if result_code == "0":
+            # Thanh toán thành công
+            supabase.table("orders").update({
+                "payment_status": "completed",
+                "payment_date": datetime.now().isoformat()
+            }).eq("id", order_id).execute()
+            
+            flash("✅ Thanh toán thành công!")
+            return redirect(url_for("profile"))
+        else:
+            # Thanh toán thất bại
+            supabase.table("orders").update({"payment_status": "failed"}).eq("id", order_id).execute()
+            flash("❌ Thanh toán thất bại")
+            return redirect(url_for("checkout"))
+    
+    except Exception as e:
+        print(f"❌ Callback error: {str(e)}")
+        flash(f"❌ Lỗi xử lý thanh toán: {str(e)}")
+        return redirect(url_for("checkout"))
+
+
+@app.route("/payment/notify", methods=["POST"])
+def payment_notify():
+    """Webhook từ Momo"""
+    try:
+        data = request.json
+        order_id = data.get("orderId")
+        result_code = data.get("resultCode")
+        
+        if result_code == 0:
+            # Cập nhật status thành completed
+            supabase.table("orders").update({
+                "payment_status": "completed",
+                "payment_date": datetime.now().isoformat()
+            }).eq("id", order_id).execute()
+            print(f"✅ Order {order_id} marked as completed")
+        else:
+            supabase.table("orders").update({"payment_status": "failed"}).eq("id", order_id).execute()
+            print(f"❌ Order {order_id} payment failed")
+        
+        return jsonify({"status": "ok"}), 200
+    
+    except Exception as e:
+        print(f"❌ Notify error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
