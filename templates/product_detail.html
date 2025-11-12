@@ -31,25 +31,6 @@
       color: #fff !important;
     }
 
-    /* ✨ FIX DROPDOWN - Click để mở menu */
-    .dropdown-menu {
-      border-radius: 10px;
-      padding: 8px 0;
-      background-color: #fff;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-      position: absolute !important;
-      top: 100% !important;
-      margin-top: 8px !important;
-      z-index: 1001 !important;
-      min-width: 200px;
-      pointer-events: auto !important;
-    }
-
-    .dropdown-item:hover {
-      background-color: #f0f4ff;
-      color: #0d6efd;
-    }
-
     /* 🔙 Nút quay lại */
     .back-btn {
       position: fixed;
@@ -256,26 +237,17 @@
             {% for review in reviews %}
               <div class="card mb-3 p-3">
                 <div class="d-flex justify-content-between align-items-start mb-2">
-                  <div class="d-flex align-items-center">
-                    <div style="width:48px;height:48px;border-radius:8px;background:#f0f2f7;display:flex;align-items:center;justify-content:center;margin-right:12px;font-size:24px;overflow:hidden;">
-                      {% if review.get('avatar_url') %}
-                        <img src="{{ review.get('avatar_url') }}" style="width:100%;height:100%;object-fit:cover;" alt="avatar" onerror="this.outerHTML='👤'"/>
-                      {% else %}
-                        👤
-                      {% endif %}
-                    </div>
-                    <div>
-                      <strong>{{ review.get('name') or 'Anonymous' }}</strong>
-                      <br>
-                      <small class="text-muted">📧 {{ review.get('email') or '-' }}</small>
-                    </div>
+                  <div>
+                    <strong>👤 {{ review.get('name') or 'Anonymous' }}</strong>
+                    <br>
+                    <small class="text-muted">📧 {{ review.get('email') or '-' }}</small>
                   </div>
                   <div class="text-end">
                     <div class="text-warning">
                       {% for i in range(review.get('rating', 0)) %}⭐{% endfor %}
                       <span class="text-muted ms-1">({{ review.get('rating', 0) }}/5)</span>
                     </div>
-                    <small class="text-muted">Bình luận</small>
+                    <small class="text-muted">{{ review.get('created_at', '')[:10] if review.get('created_at') else '-' }}</small>
                   </div>
                 </div>
                 <hr class="my-2">
@@ -287,8 +259,8 @@
           <p class="text-muted text-center mb-5">Chưa có đánh giá nào cho sản phẩm này.</p>
         {% endif %}
 
-        <!-- Review Form (only for users who purchased this product and haven't reviewed yet) -->
-        {% if session.get('email') and user_has_purchased and not user_has_reviewed %}
+        <!-- Review Form (only for users who purchased this product) -->
+        {% if session.get('email') and user_has_purchased %}
           <div class="card p-4 bg-light">
             <h5 class="mb-4">📝 Để lại đánh giá của bạn</h5>
             
@@ -332,10 +304,6 @@
               <button type="submit" class="btn btn-primary w-100">📤 Gửi đánh giá</button>
             </form>
           </div>
-        {% elif session.get('email') and user_has_reviewed %}
-          <div class="alert alert-success" role="alert">
-            <strong>✅ Cảm ơn!</strong> Bạn đã đánh giá sản phẩm này. Mỗi khách hàng chỉ được đánh giá một lần duy nhất.
-          </div>
         {% elif session.get('email') %}
           <div class="alert alert-info" role="alert">
             <strong>ℹ️ Lưu ý:</strong> Bạn cần phải mua sản phẩm này để có thể bình luận và đánh giá.
@@ -358,48 +326,6 @@
   <script>
     document.querySelector('.btn-add-cart').addEventListener('click', () => {
       alert('📗 Sách đã được thêm vào giỏ hàng!');
-    });
-
-    // ✨ Xử lý dropdown click thay vì hover
-    document.addEventListener('DOMContentLoaded', function() {
-      const dropdowns = document.querySelectorAll('.nav-item.dropdown');
-      
-      dropdowns.forEach(dropdown => {
-        const toggle = dropdown.querySelector('.dropdown-toggle');
-        const menu = dropdown.querySelector('.dropdown-menu');
-        
-        if (!toggle || !menu) return;
-        
-        // Khi click vào toggle
-        toggle.addEventListener('click', function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          
-          // Toggle hiển thị/ẩn menu
-          const isOpen = menu.style.display === 'block';
-          menu.style.display = isOpen ? 'none' : 'block';
-        });
-        
-        // Khi click vào các item trong menu
-        const items = menu.querySelectorAll('.dropdown-item');
-        items.forEach(item => {
-          item.addEventListener('click', function() {
-            menu.style.display = 'none'; // Ẩn menu sau khi bấm
-          });
-        });
-      });
-      
-      // Khi click ở ngoài dropdown thì ẩn menu
-      document.addEventListener('click', function(e) {
-        dropdowns.forEach(dropdown => {
-          if (!dropdown.contains(e.target)) {
-            const menu = dropdown.querySelector('.dropdown-menu');
-            if (menu) {
-              menu.style.display = 'none';
-            }
-          }
-        });
-      });
     });
   </script>
 </body>
