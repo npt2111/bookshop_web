@@ -129,6 +129,12 @@ def login():
                 session['name'] = customer.get('name', '')
                 session['phone'] = customer.get('phone', '')
                 session['role'] = customer.get('role', '')
+                saved_cart = supabase.table("cart").select("product").eq("id_customer", customer.get('id')).order("created_at", desc=True).limit(1).execute()
+                if saved_cart.data:
+                    session["cart"] = saved_cart.data[0]["product"]
+                    print(f"🛒 Restored cart for user {customer.get('id')}")
+                else:
+                    session["cart"] = []
                 flash('Đăng nhập thành công!')
                 return redirect(url_for('index'))
             else:
@@ -143,6 +149,31 @@ def login():
 
 @app.route('/logout')
 def logout():
+    user_id = session.get("user_id")
+    cart_items = session.get("cart", [])
+
+    if user_id:
+        try:
+            # Kiểm tra xem user đã có giỏ hàng trong bảng chưa
+            existing_cart = supabase.table("cart").select("id").eq("id_customer", user_id).execute()
+
+            if existing_cart.data:
+                # 🔄 Nếu có → cập nhật giỏ hàng
+                supabase.table("cart").update({
+                    "product": cart_items,
+                    "created_at": datetime.now().isoformat()
+                }).eq("id_customer", user_id).execute()
+                print(f"♻️ Updated cart for user {user_id}")
+            else:
+                # 🆕 Nếu chưa có → thêm mới
+                supabase.table("cart").insert({
+                    "id_customer": user_id,
+                    "product": cart_items,
+                }).execute()
+                print(f"🛒 Inserted new cart for user {user_id}")
+
+        except Exception as e:
+            print(f"⚠️ Error saving cart: {e}")
     try:
         supabase.auth.sign_out()
     except:
@@ -218,24 +249,6 @@ def index():
 
 
 
-# -------------------------
-#  Đặt hàng
-# -------------------------
-@app.route("/order/<int:product_id>", methods=["GET", "POST"])
-def order(product_id):
-    product = supabase.table("inventory").select("*").eq("id", product_id).single().execute().data
-
-    if request.method == "POST":
-        customer_name = request.form.get("customer_name")
-        quantity = int(request.form.get("quantity", 1))
-        supabase.table("orders").insert({
-            "product_id": product_id,
-            "customer_name": customer_name,
-            "quantity": quantity
-        }).execute()
-        return redirect(url_for("index", msg="✅ Đặt hàng thành công!"))
-
-    return render_template("order.html", product=product)
 
 # -------------------------
 # Trang profile
@@ -586,6 +599,37 @@ def add_to_cart(product_id):
     return redirect(url_for("cart"))
 
 
+@app.route("/add_more/<int:product_id>", methods=["POST"])
+def add_more(product_id):
+    quantity = int(request.form.get("quantity", 1))
+
+    res = supabase.table("inventory").select("*").eq("id", product_id).execute()
+    if not res.data:
+        flash("Sản phẩm không tồn tại!", "danger")
+        return redirect(url_for("index"))
+
+    product = res.data[0]
+    cart = session.get("cart", [])
+
+    # Nếu sản phẩm đã có trong giỏ hàng -> cộng dồn số lượng
+    for item in cart:
+        if item["id"] == product_id:
+            item["quantity"] += quantity
+            break
+    else:
+        cart.append({
+            "id": product["id"],
+            "name": product["product"],
+            "price": float(product["price"]),
+            "image_url": product.get("image_url"),
+            "quantity": quantity
+        })
+
+    session["cart"] = cart
+    flash("🛒 Đã thêm vào giỏ hàng!", "success")
+    return redirect(url_for("index"))
+
+
 # -------------------------
 #  Trang giỏ hàng
 # -------------------------
@@ -666,6 +710,36 @@ def cart_bulk_action():
 
 
 # -------------------------
+#  Đặt hàng
+# -------------------------
+@app.route("/order", methods=["GET"])
+def order():
+    product_id = request.args.get("product_id", type=int)
+    quantity = request.args.get("quantity", type=int, default=1)
+
+    if not product_id:
+        flash("Thiếu thông tin sản phẩm để đặt hàng!", "danger")
+        return redirect(url_for("index"))
+
+    res = supabase.table("inventory").select("*").eq("id", product_id).execute()
+    if not res.data:
+        flash("Sản phẩm không tồn tại!", "danger")
+        return redirect(url_for("index"))
+
+    product = res.data[0]
+    item = {
+        "id": product["id"],
+        "name": product["product"],
+        "price": float(product["price"]),
+        "image_url": product.get("image_url"),
+        "quantity": quantity,
+    }
+    session["checkout_items"] = [item]
+    session.modified = True
+
+    total = item["price"] * item["quantity"]
+    return render_template("checkout_form.html", items=[item], total=total)
+# -------------------------
 #  Xử lý sau khi điền thông tin thanh toán
 # -------------------------
 
@@ -694,7 +768,7 @@ def process_checkout():
     phone = request.form.get("phone")
     address = request.form.get("address")
     note = request.form.get("note")
-
+    cus_id = session.get("user_id")
     items = session.get("checkout_items", [])
     if not items:
         return render_template("checkout_error.html", error="Không có sản phẩm nào để thanh toán!")
@@ -719,6 +793,7 @@ def process_checkout():
         "product": items,  # JSON
         "total_amount": total,
         "status": "pending",
+        "customer_id": cus_id,
         "created_at": datetime.utcnow().isoformat()
     }).execute()
 

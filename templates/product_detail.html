@@ -267,13 +267,31 @@
         <p>{{ product.description or 'Không có mô tả chi tiết cho sản phẩm này.' }}</p>
         
         <div class="d-grid gap-3 mt-4">
-          <button class="btn btn-add-cart">🛒 Thêm vào giỏ hàng</button>
-          <form action="{{ url_for('order', product_id=product.id) }}" method="GET">
-            <button type="submit" class="btn btn-buy w-100">
-              ⚡ Mua ngay
-            </button>
-          </form>
+        <!-- 🔢 Chọn số lượng -->
+        <div class="d-flex align-items-center">
+          <label for="quantity" class="me-2 fw-semibold">Số lượng:</label>
+          <input type="number" id="quantity" name="quantity" class="form-control w-25 text-center"
+                min="1" max="{{ product.quantity }}" value="1">
         </div>
+
+        <!-- 🛒 Thêm vào giỏ hàng -->
+        <form action="{{ url_for('add_more', product_id=product.id) }}" method="POST" class="mt-3">
+          <input type="hidden" name="quantity" id="cartQuantity" value="1">
+          <button type="submit" class="btn btn-warning w-100 fw-bold text-dark">
+            🛒 Thêm vào giỏ hàng
+          </button>
+        </form>
+
+        <!-- ⚡ Mua ngay -->
+       <form action="{{ url_for('order') }}" method="GET" class="mt-2">
+        <input type="hidden" name="product_id" value="{{ product.id }}">
+        <input type="hidden" name="quantity" id="buyQuantity" value="1">
+        <button type="submit" class="btn btn-success w-100 fw-bold">
+          ⚡ Mua ngay
+        </button>
+      </form>
+
+      </div>
       </div>
     </div>
   </div>
@@ -379,6 +397,19 @@
   <script>
     document.querySelector('.btn-add-cart').addEventListener('click', () => {
       alert('📗 Sách đã được thêm vào giỏ hàng!');
+    });
+    
+  </script>
+  <script>
+    const qtyInput = document.getElementById('quantity');
+    const cartQty = document.getElementById('cartQuantity');
+    const buyQty = document.getElementById('buyQuantity');
+
+    qtyInput.addEventListener('input', () => {
+      const val = Math.max(1, Math.min(qtyInput.value, {{ product.quantity or 1 }}));
+      qtyInput.value = val;
+      cartQty.value = val;
+      buyQty.value = val;
     });
   </script>
 </body>
