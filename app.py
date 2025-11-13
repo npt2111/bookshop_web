@@ -234,6 +234,33 @@ def index():
     end = start + per_page
     products_paginated = products[start:end]
 
+    #update cart
+    user_id = session.get("user_id")
+    cart_items = session.get("cart", [])
+
+    if user_id:
+        try:
+            # Kiểm tra xem user đã có giỏ hàng trong bảng chưa
+            existing_cart = supabase.table("cart").select("id").eq("id_customer", user_id).execute()
+
+            if existing_cart.data:
+                # 🔄 Nếu có → cập nhật giỏ hàng
+                supabase.table("cart").update({
+                    "product": cart_items,
+                    "created_at": datetime.now().isoformat()
+                }).eq("id_customer", user_id).execute()
+                print(f"♻️ Updated cart for user {user_id}")
+            else:
+                # 🆕 Nếu chưa có → thêm mới
+                supabase.table("cart").insert({
+                    "id_customer": user_id,
+                    "product": cart_items,
+                }).execute()
+                print(f"🛒 Inserted new cart for user {user_id}")
+
+        except Exception as e:
+            print(f"⚠️ Error saving cart: {e}")
+
     return render_template(
         "index.html",
         products=products_paginated,
@@ -296,7 +323,7 @@ def profile():
                 if product_id and product_id in inventory_map:
                     item['image_url'] = inventory_map[product_id].get('image_url', '')
 
-    return render_template('profile.html', customer=customer, orders=orders)
+    return render_template('profile.html', customer=customer, orders=orders,cart_count=len(session.get('cart', [])))
 
 # -------------------------
 # Trang admin
@@ -438,7 +465,12 @@ def delete_product(id):
 @app.route("/product/<int:product_id>")
 def product_detail(product_id):
     product = supabase.table("inventory").select("*").eq("id", product_id).single().execute().data
-    
+    id_customer = session.get("user_id")
+    supabase.table("interactions").insert({
+        "id_customer": id_customer,
+        "id_product": product_id,
+        "view_at": datetime.now().isoformat()
+        }).execute()
     # Lấy reviews cho sản phẩm này
     reviews = []
     try:
@@ -478,7 +510,7 @@ def product_detail(product_id):
             print(f"❌ Error checking purchase history: {str(e)}")
             pass
     
-    return render_template("product_detail.html", product=product, reviews=reviews, user_has_purchased=user_has_purchased, user_orders=user_orders)
+    return render_template("product_detail.html", product=product, reviews=reviews, user_has_purchased=user_has_purchased, user_orders=user_orders,cart_count=len(session.get('cart', [])))
       
 
 # -------------------------
@@ -533,24 +565,31 @@ def add_review():
         
         # Chuẩn bị dữ liệu
         review_data = {
-            "id_product": product_id,
             "order_id": order_id if order_id else None,
+            "id_product": product_id,
+            "id_customer": session.get("user_id"),
             "rating": rating,
             "comment": comment,
             "name": name if name else "Anonymous",
             "email": email,
             "created_at": datetime.utcnow().isoformat()
         }
-        
+        interactions_data = {
+            "id_customer": session.get("user_id"),
+            "id_product": product_id,
+            "rating": rating,
+            "view_at": datetime.utcnow().isoformat()
+        }
         print(f"\n� Attempting to save review:")
         print(f"  {review_data}")
         
         # Try to insert
         result = supabase.table("reviews").insert(review_data).execute()
-        
+        result1 = supabase.table("interactions").insert(interactions_data).execute()
         print(f"✅ Review saved successfully!")
         print(f"  Result: {result}")
-        
+        print(f"  Result1: {result1}")
+
         flash('✅ Cảm ơn bạn đã bình luận!')
         return redirect(url_for('product_detail', product_id=product_id))
         
@@ -584,6 +623,12 @@ def add_to_cart(product_id):
     for item in cart:
         if item["id"] == product_id:
             item["quantity"] += 1
+            id_customer = session.get("user_id")
+            supabase.table("interactions").insert({
+            "id_customer": id_customer,
+            "id_product": product_id,
+            "view_at": datetime.now().isoformat()
+            }).execute()
             break
     else:
         cart.append({
@@ -596,6 +641,35 @@ def add_to_cart(product_id):
 
     session["cart"] = cart
     session.modified = True
+
+
+       #update cart
+    user_id = session.get("user_id")
+    cart_items = session.get("cart", [])
+
+    if user_id:
+        try:
+            # Kiểm tra xem user đã có giỏ hàng trong bảng chưa
+            existing_cart = supabase.table("cart").select("id").eq("id_customer", user_id).execute()
+
+            if existing_cart.data:
+                # 🔄 Nếu có → cập nhật giỏ hàng
+                supabase.table("cart").update({
+                    "product": cart_items,
+                    "created_at": datetime.now().isoformat()
+                }).eq("id_customer", user_id).execute()
+                print(f"Updated cart for user {user_id}")
+            else:
+                # 🆕 Nếu chưa có → thêm mới
+                supabase.table("cart").insert({
+                    "id_customer": user_id,
+                    "product": cart_items,
+                }).execute()
+                print(f"Inserted new cart for user {user_id}")
+
+        except Exception as e:
+            print(f"⚠️ Error saving cart: {e}")
+
     return redirect(url_for("cart"))
 
 
@@ -627,6 +701,33 @@ def add_more(product_id):
 
     session["cart"] = cart
     flash("🛒 Đã thêm vào giỏ hàng!", "success")
+       #update cart
+    user_id = session.get("user_id")
+    cart_items = session.get("cart", [])
+
+    if user_id:
+        try:
+            # Kiểm tra xem user đã có giỏ hàng trong bảng chưa
+            existing_cart = supabase.table("cart").select("id").eq("id_customer", user_id).execute()
+
+            if existing_cart.data:
+                # 🔄 Nếu có → cập nhật giỏ hàng
+                supabase.table("cart").update({
+                    "product": cart_items,
+                    "created_at": datetime.now().isoformat()
+                }).eq("id_customer", user_id).execute()
+                print(f"♻️ Updated cart for user {user_id}")
+            else:
+                # 🆕 Nếu chưa có → thêm mới
+                supabase.table("cart").insert({
+                    "id_customer": user_id,
+                    "product": cart_items,
+                }).execute()
+                print(f"🛒 Inserted new cart for user {user_id}")
+
+        except Exception as e:
+            print(f"⚠️ Error saving cart: {e}")
+
     return redirect(url_for("index"))
 
 
@@ -661,6 +762,35 @@ def update_cart_ajax(product_id):
 
     session["cart"] = cart
     session.modified = True
+
+       #update cart
+    user_id = session.get("user_id")
+    cart_items = session.get("cart", [])
+
+    if user_id:
+        try:
+            # Kiểm tra xem user đã có giỏ hàng trong bảng chưa
+            existing_cart = supabase.table("cart").select("id").eq("id_customer", user_id).execute()
+
+            if existing_cart.data:
+                # 🔄 Nếu có → cập nhật giỏ hàng
+                supabase.table("cart").update({
+                    "product": cart_items,
+                    "created_at": datetime.now().isoformat()
+                }).eq("id_customer", user_id).execute()
+                print(f"♻️ Updated cart for user {user_id}")
+            else:
+                # 🆕 Nếu chưa có → thêm mới
+                supabase.table("cart").insert({
+                    "id_customer": user_id,
+                    "product": cart_items,
+                }).execute()
+                print(f"🛒 Inserted new cart for user {user_id}")
+
+        except Exception as e:
+            print(f"⚠️ Error saving cart: {e}")
+
+
     return ("", 204)
 
 
@@ -670,6 +800,33 @@ def update_cart_ajax(product_id):
 @app.route("/clear_cart")
 def clear_cart():
     session.pop("cart", None)
+
+       #update cart
+    user_id = session.get("user_id")
+    cart_items = session.get("cart", [])
+
+    if user_id:
+        try:
+            # Kiểm tra xem user đã có giỏ hàng trong bảng chưa
+            existing_cart = supabase.table("cart").select("id").eq("id_customer", user_id).execute()
+
+            if existing_cart.data:
+                # 🔄 Nếu có → cập nhật giỏ hàng
+                supabase.table("cart").update({
+                    "product": cart_items,
+                    "created_at": datetime.now().isoformat()
+                }).eq("id_customer", user_id).execute()
+                print(f"♻️ Updated cart for user {user_id}")
+            else:
+                # 🆕 Nếu chưa có → thêm mới
+                supabase.table("cart").insert({
+                    "id_customer": user_id,
+                    "product": cart_items,
+                }).execute()
+                print(f"🛒 Inserted new cart for user {user_id}")
+
+        except Exception as e:
+            print(f"⚠️ Error saving cart: {e}")
     return redirect(url_for("cart"))
 
 
@@ -691,6 +848,33 @@ def cart_bulk_action():
         cart = [item for item in cart if item["id"] not in selected_ids]
         session["cart"] = cart
         session.modified = True
+            #update cart
+        user_id = session.get("user_id")
+        cart_items = session.get("cart", [])
+
+        if user_id:
+            try:
+                # Kiểm tra xem user đã có giỏ hàng trong bảng chưa
+                existing_cart = supabase.table("cart").select("id").eq("id_customer", user_id).execute()
+
+                if existing_cart.data:
+                    # 🔄 Nếu có → cập nhật giỏ hàng
+                    supabase.table("cart").update({
+                        "product": cart_items,
+                        "created_at": datetime.now().isoformat()
+                    }).eq("id_customer", user_id).execute()
+                    print(f"♻️ Updated cart for user {user_id}")
+                else:
+                    # 🆕 Nếu chưa có → thêm mới
+                    supabase.table("cart").insert({
+                        "id_customer": user_id,
+                        "product": cart_items,
+                    }).execute()
+                    print(f"🛒 Inserted new cart for user {user_id}")
+
+            except Exception as e:
+                print(f"⚠️ Error saving cart: {e}")
+
 
     elif action == "checkout":
         paid_items = [item for item in cart if item["id"] in selected_ids]
@@ -813,6 +997,34 @@ def process_checkout():
     session.modified = True
     # Xóa giỏ hàng tạm
     session.pop("checkout_items", None)
+
+       #update cart
+    user_id = session.get("user_id")
+    cart_items = session.get("cart", [])
+
+    if user_id:
+        try:
+            # Kiểm tra xem user đã có giỏ hàng trong bảng chưa
+            existing_cart = supabase.table("cart").select("id").eq("id_customer", user_id).execute()
+
+            if existing_cart.data:
+                # 🔄 Nếu có → cập nhật giỏ hàng
+                supabase.table("cart").update({
+                    "product": cart_items,
+                    "created_at": datetime.now().isoformat()
+                }).eq("id_customer", user_id).execute()
+                print(f"♻️ Updated cart for user {user_id}")
+            else:
+                # 🆕 Nếu chưa có → thêm mới
+                supabase.table("cart").insert({
+                    "id_customer": user_id,
+                    "product": cart_items,
+                }).execute()
+                print(f"🛒 Inserted new cart for user {user_id}")
+
+        except Exception as e:
+            print(f"⚠️ Error saving cart: {e}")
+
 
     return render_template("checkout_success.html", order_id=order_id, customer=name, total=total)
 
@@ -998,6 +1210,29 @@ def edit_voucher(id):
 @app.route("/lucky_spin")
 def lucky_spin():
     return render_template("lucky_spin.html")
+
+
+
+#Train goi y san pham
+
+import os
+import pickle
+from datetime import datetime
+from flask import Flask, jsonify, request, render_template, send_from_directory
+import pandas as pd
+import numpy as np
+
+# ML libs
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from surprise import Dataset, Reader, SVD
+from dotenv import load_dotenv
+
+load_dotenv()
+
+MODEL_PATH = "hybrid_model.pkl"
+
+
 
 
 if __name__ == "__main__":
