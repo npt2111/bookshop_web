@@ -1431,6 +1431,7 @@ def momo_cancel():
                          error='Bạn đã hủy thanh toán MoMo. Vui lòng thử lại hoặc chọn phương thức khác.')
 
 
+# load_dotenv()
 
 MODEL_PATH = "hybrid_model.pkl"
 
