@@ -322,9 +322,9 @@
     
   </script>
   <!-- 🎡 Nút nổi Vòng quay may mắn -->
-  <a href="{{ url_for('lucky_spin') }}" class="lucky-float-btn" title="Vòng quay may mắn 🎁">
-    🎡
-  </a>
+  <button class="lucky-float-btn" id="openSpin">
+    🎯
+  </button>
  <!-- Chatbot Toggler -->
     <button id="chatbot-toggler">
         <span class="material-symbols-rounded"><svg class="bot-avatar" xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 1024 1024">
@@ -376,6 +376,18 @@
             </form>
         </div>
     </div>
+    <!-- Popup Vòng quay may mắn -->
+    <div id="spinBox" class="spin-modal">
+      <div class="spin-content">
+        <span class="close-spin">&times;</span>
+        <h3 class="mb-3 text-center">🎁 Vòng quay may mắn</h3>
+        <canvas id="wheelCanvas" width="400" height="400"></canvas>
+        <div class="arrow"></div>
+        <button id="spinBtn" class="spin-btn mt-3">Quay ngay</button>
+        <p id="result" class="mt-3 fw-bold text-center"></p>
+      </div>
+    </div>
+
 
     <!-- Linking Emoji Mart script for emoji picker -->
     <script src="https://cdn.jsdelivr.net/npm/emoji-mart@latest/dist/browser.js"></script>
@@ -423,6 +435,95 @@
     }
   }
 </style>
+<script>
+  const openSpin = document.getElementById("openSpin");
+  const spinModal = document.getElementById("spinBox");
+  const closeSpin = document.querySelector(".close-spin");
+  const wheelCanvas = document.getElementById("wheelCanvas");
+  const spinBtn = document.getElementById("spinBtn");
+  const result = document.getElementById("result");
+  const ctx = wheelCanvas.getContext("2d");
+
+  const prizes = [
+    "Giảm 10%", "Giảm 20%", "Giảm 30%", "Cái nịt",
+    "Giảm 5%", "Giảm 50%", "Cái nịt", "Giảm 15%"
+  ];
+
+  const colors = ["#ff7675","#74b9ff","#55efc4","#ffeaa7","#fd79a8","#a29bfe","#fab1a0","#81ecec"];
+  const slice = 360 / prizes.length;
+  let startAngle = 0;
+  let spinAngle = 0;
+  let spinning = false;
+
+  // 🎨 Vẽ vòng quay
+  function drawWheel() {
+    for (let i = 0; i < prizes.length; i++) {
+      const start = (slice * i) * Math.PI / 180;
+      const end = (slice * (i + 1)) * Math.PI / 180;
+      ctx.beginPath();
+      ctx.moveTo(200, 200);
+      ctx.arc(200, 200, 180, start, end);
+      ctx.fillStyle = colors[i % colors.length];
+      ctx.fill();
+      ctx.save();
+
+      ctx.translate(200, 200);
+      ctx.rotate(start + slice * Math.PI / 360);
+      ctx.textAlign = "right";
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 15px Poppins";
+      ctx.fillText(prizes[i], 160, 10);
+      ctx.restore();
+    }
+  }
+  drawWheel();
+
+  // 🎯 Quay vòng
+  spinBtn.addEventListener("click", () => {
+    if (spinning) return;
+    spinning = true;
+    result.textContent = "";
+    
+    const random = Math.floor(Math.random() * prizes.length);
+    const finalAngle = 360 * 8 + (360 - random * slice - slice / 2);
+    
+    let current = 0;
+    const duration = 4000;
+    const startTime = performance.now();
+    
+    function animate(now) {
+      const progress = Math.min((now - startTime) / duration, 1);
+      spinAngle = finalAngle * easeOutCubic(progress);
+      ctx.clearRect(0,0,400,400);
+      ctx.save();
+      ctx.translate(200,200);
+      ctx.rotate((spinAngle * Math.PI / 180));
+      ctx.translate(-200,-200);
+      drawWheel();
+      ctx.restore();
+      
+      if (progress < 1) requestAnimationFrame(animate);
+      else {
+        spinning = false;
+        const won = prizes[random];
+        result.innerHTML = won.includes("Chúc") 
+          ? "😢 " + won
+          : "🎉 Bạn trúng: <b>" + won + "</b>";
+      }
+    }
+    requestAnimationFrame(animate);
+  });
+
+  function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
+
+  // 🧩 Popup điều khiển
+  openSpin.addEventListener("click", () => spinModal.style.display = "flex");
+  closeSpin.addEventListener("click", () => spinModal.style.display = "none");
+  window.addEventListener("click", e => {
+    if (e.target === spinModal) spinModal.style.display = "none";
+  });
+</script>
+
 
 </body>
 
