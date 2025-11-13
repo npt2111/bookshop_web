@@ -53,9 +53,6 @@ app.config.update(
 )
 Session(app)
 
-UPLOAD_FOLDER = "static/uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 
 # -------------------------
@@ -234,24 +231,21 @@ def index():
     end = start + per_page
     products_paginated = products[start:end]
 
-    #update cart
+    # 🛒 Cập nhật giỏ hàng
     user_id = session.get("user_id")
     cart_items = session.get("cart", [])
 
     if user_id:
         try:
-            # Kiểm tra xem user đã có giỏ hàng trong bảng chưa
             existing_cart = supabase.table("cart").select("id").eq("id_customer", user_id).execute()
 
             if existing_cart.data:
-                # 🔄 Nếu có → cập nhật giỏ hàng
                 supabase.table("cart").update({
                     "product": cart_items,
                     "created_at": datetime.now().isoformat()
                 }).eq("id_customer", user_id).execute()
                 print(f"♻️ Updated cart for user {user_id}")
             else:
-                # 🆕 Nếu chưa có → thêm mới
                 supabase.table("cart").insert({
                     "id_customer": user_id,
                     "product": cart_items,
@@ -261,6 +255,17 @@ def index():
         except Exception as e:
             print(f"⚠️ Error saving cart: {e}")
 
+    # 👤 Lấy thông tin người dùng hiện tại để hiển thị avatar
+    customer = None
+    if "email" in session:
+        try:
+            result = supabase.table("customer").select("*").eq("email", session["email"]).execute()
+            if result.data:
+                customer = result.data[0]
+        except Exception as e:
+            print("⚠️ Lỗi khi lấy customer:", e)
+
+    # ✅ Truyền customer vào template
     return render_template(
         "index.html",
         products=products_paginated,
@@ -272,8 +277,8 @@ def index():
         total_pages=total_pages,
         session=session,
         cart_count=len(session.get('cart', [])),
+        customer=customer   # 👈 thêm dòng này
     )
-
 
 
 
@@ -325,6 +330,55 @@ def profile():
 
     return render_template('profile.html', customer=customer, orders=orders,cart_count=len(session.get('cart', [])))
 
+@app.route("/profile/update", methods=["GET", "POST"])
+def update_profile():
+    # Kiểm tra đăng nhập
+    if "email" not in session:
+        return redirect(url_for("login"))
+
+    # ✅ Nếu nhấn nút lưu form
+    if request.method == "POST":
+        name = request.form.get("name")
+        phone = request.form.get("phone")
+        file = request.files.get("avatar")
+
+        image_url = ""
+        if file and file.filename:
+            filename = str(int(time.time())) + "_" + secure_filename(file.filename)
+            try:
+                # ✅ Đọc file thành bytes trước khi upload
+                file_bytes = file.read()
+                supabase.storage.from_("avatar").upload(filename, file_bytes)
+
+                # ✅ Link ảnh public
+                image_url = f"{SUPABASE_URL}/storage/v1/object/public/avatar/{filename}"
+
+            except Exception as e:
+                print("❌ Lỗi khi upload avatar:", e)
+                return "Lỗi khi upload avatar!"
+
+        # ✅ Dữ liệu cập nhật
+        update_data = {"name": name, "phone": phone}
+        if image_url:
+            update_data["avatar_url"] = image_url
+
+        try:
+            # ✅ Cập nhật vào Supabase
+            supabase.table("customer").update(update_data).eq("email", session["email"]).execute()
+            print("✅ Cập nhật thông tin thành công!")
+            return redirect(url_for("profile", msg="✅ Cập nhật thông tin thành công!"))
+        except Exception as e:
+            print("❌ Lỗi khi cập nhật customer:", e)
+            return "Cập nhật thất bại!"
+
+    # ✅ Nếu là GET → hiển thị trang profile
+    user_email = session["email"]
+    customer = (
+        supabase.table("customer").select("*").eq("email", user_email).execute().data
+    )
+    customer = customer[0] if customer else {}
+
+    return render_template("profile.html", customer=customer)
 # -------------------------
 # Trang admin
 # -------------------------
@@ -1228,6 +1282,7 @@ def lucky_spin():
 # from surprise import Dataset, Reader, SVD
 # from dotenv import load_dotenv
 
+# load_dotenv()
 # -------------------------
 # MoMo Payment Routes (Sandbox)
 # -------------------------

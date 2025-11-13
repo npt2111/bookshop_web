@@ -1,0 +1,2 @@
+git rm -r --cached .flask_session
+git add .gitignore
