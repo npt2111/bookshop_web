@@ -1215,20 +1215,168 @@ def lucky_spin():
 
 #Train goi y san pham
 
-import os
-import pickle
-from datetime import datetime
-from flask import Flask, jsonify, request, render_template, send_from_directory
-import pandas as pd
-import numpy as np
+# import os
+# import pickle
+# from datetime import datetime
+# from flask import Flask, jsonify, request, render_template, send_from_directory
+# import pandas as pd
+# import numpy as np
 
-# ML libs
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-from surprise import Dataset, Reader, SVD
-from dotenv import load_dotenv
+# # ML libs
+# from sklearn.feature_extraction.text import TfidfVectorizer
+# from sklearn.metrics.pairwise import cosine_similarity
+# from surprise import Dataset, Reader, SVD
+# from dotenv import load_dotenv
 
-load_dotenv()
+# -------------------------
+# MoMo Payment Routes (Sandbox)
+# -------------------------
+
+@app.route('/momo_payment', methods=['POST'])
+def momo_payment_page():
+    """
+    Xử lý khi người dùng chọn thanh toán MoMo
+    Lưu thông tin khách hàng và hiển thị giao diện MoMo
+    """
+    name = request.form.get('name')
+    email = request.form.get('email')
+    phone = request.form.get('phone')
+    address = request.form.get('address')
+    note = request.form.get('note')
+    
+    # Lấy thông tin đơn hàng từ session
+    items = session.get("checkout_items", [])
+    if not items:
+        return render_template("checkout_error.html", error="Không có sản phẩm nào để thanh toán!")
+    
+    total = sum(item["price"] * item["quantity"] for item in items)
+    items_count = len(items)
+    
+    # Tạo order_id
+    while True:
+        order_id = f"MOMO-{random.randint(100000,999999)}"
+        exists = supabase.table("orders").select("order_id").eq("order_id", order_id).execute()
+        if not exists.data:
+            break
+    
+    # Lưu thông tin vào session để sử dụng sau
+    session['momo_payment_info'] = {
+        'order_id': order_id,
+        'name': name,
+        'email': email,
+        'phone': phone,
+        'address': address,
+        'note': note,
+        'amount': total,
+        'items': items,
+        'timestamp': datetime.utcnow().isoformat()
+    }
+    session.modified = True
+    
+    return render_template('momo_payment.html',
+                         order_id=order_id,
+                         customer_name=name,
+                         customer_phone=phone,
+                         amount=total,
+                         items_count=items_count)
+
+@app.route('/momo_success/<order_id>')
+def momo_success(order_id):
+    """
+    Trang success sau khi thanh toán MoMo thành công
+    """
+    momo_info = session.get('momo_payment_info', {})
+    
+    if not momo_info or momo_info.get('order_id') != order_id:
+        return redirect(url_for('checkout_error'))
+    
+    # Lưu đơn hàng vào Supabase với status pending (chỉ lưu, chưa xác nhận)
+    cus_id = session.get("user_id")
+    
+    try:
+        supabase.table("orders").insert({
+            "order_id": order_id,
+            "name": momo_info.get('name'),
+            "email": momo_info.get('email'),
+            "phone": momo_info.get('phone'),
+            "address": momo_info.get('address'),
+            "note": momo_info.get('note'),
+            "product": momo_info.get('items', []),
+            "total_amount": momo_info.get('amount'),
+            "status": "pending",
+            "customer_id": cus_id,
+            "created_at": datetime.utcnow().isoformat()
+        }).execute()
+        
+        # Gửi webhook
+        try:
+            WEBHOOK_URL = "https://n8n.nocodelowcode.id.vn/webhook-test/checkout"
+            requests.post(WEBHOOK_URL, json={
+                "order_id": order_id,
+                "payment_method": "momo",
+                "customer": {
+                    "name": momo_info.get('name'),
+                    "email": momo_info.get('email'),
+                    "phone": momo_info.get('phone'),
+                    "address": momo_info.get('address'),
+                    "note": momo_info.get('note')
+                },
+                "order": {
+                    "items": momo_info.get('items', []),
+                    "total": momo_info.get('amount')
+                }
+            }, timeout=10)
+        except:
+            print("⚠️ Gửi webhook thất bại nhưng đơn đã lưu vào Supabase.")
+        
+        # Xóa sản phẩm đã checkout ra khỏi giỏ hàng
+        cart = session.get("cart", [])
+        remaining_cart = [item for item in cart if item not in momo_info.get('items', [])]
+        session["cart"] = remaining_cart
+        session.pop("checkout_items", None)
+        session.pop("momo_payment_info", None)
+        session.modified = True
+        
+        # Update cart in Supabase
+        user_id = session.get("user_id")
+        if user_id:
+            try:
+                existing_cart = supabase.table("cart").select("id").eq("id_customer", user_id).execute()
+                
+                if existing_cart.data:
+                    supabase.table("cart").update({
+                        "product": remaining_cart,
+                        "created_at": datetime.now().isoformat()
+                    }).eq("id_customer", user_id).execute()
+                else:
+                    supabase.table("cart").insert({
+                        "id_customer": user_id,
+                        "product": remaining_cart,
+                    }).execute()
+            except Exception as e:
+                print(f"⚠️ Error updating cart: {e}")
+        
+        # Redirect về trang chủ thay vì render success page
+        flash(f'✅ Thanh toán MoMo thành công! Mã đơn hàng: {order_id}', 'success')
+        return redirect(url_for('index'))
+    except Exception as e:
+        print(f"❌ Error saving order: {e}")
+        return render_template('checkout_error.html',
+                             error=f"Có lỗi khi xử lý đơn hàng: {str(e)}")
+
+@app.route('/momo_cancel')
+def momo_cancel():
+    """
+    Trang error khi người dùng hủy thanh toán MoMo
+    """
+    session.pop('momo_payment_info', None)
+    session.modified = True
+    
+    return render_template('checkout_error.html',
+                         error='Bạn đã hủy thanh toán MoMo. Vui lòng thử lại hoặc chọn phương thức khác.')
+
+
+# load_dotenv()
 
 MODEL_PATH = "hybrid_model.pkl"
 
