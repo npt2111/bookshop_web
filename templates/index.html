@@ -182,9 +182,12 @@
           </li>
           {% if session.get('email') %}
           <li class="nav-item dropdown me-2">
-            <a class="nav-link dropdown-toggle text-light fw-semibold" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-              👤 {{ session.get('name', 'Khách') }}
+            <a class="nav-link dropdown-toggle text-light fw-semibold d-flex align-items-center gap-2" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <img src="{{ customer.get('avatar_url') or 'https://via.placeholder.com/30?text=User' }}" 
+                   alt="Avatar" style="width:30px;height:30px;border-radius:50%;object-fit:cover;">
+              {{ session.get('name', 'Khách') }}
             </a>
+
             <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown">
               <li><a class="dropdown-item" href="{{ url_for('profile') }}">Hồ sơ cá nhân</a></li>
               <li><hr class="dropdown-divider"></li>
