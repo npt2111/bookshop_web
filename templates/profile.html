@@ -156,8 +156,10 @@
         </div>
 
         <!-- 📦 Đơn hàng gần đây -->
+        <!-- 📦 Đơn hàng gần đây -->
         <div class="card p-4">
           <h4 class="mb-4">📦 Đơn hàng gần đây</h4>
+
           {% if orders %}
             {% for o in orders %}
               <div class="card order-card p-3 mb-3">
@@ -168,7 +170,40 @@
                   </div>
                   <div class="text-end">
                     <strong>Tổng:</strong> {{ o.get('total_amount') or '-' }} VND<br>
-                    <small class="text-muted">Trạng thái: <span class="badge bg-info">{{ o.get('status') or '-' }}</span></small>
+                    <small class="text-muted">
+                      Trạng thái: 
+                      <span class="badge bg-info">{{ o.get('status') or '-' }}</span>
+                    </small>
+                  </div>
+                </div>
+
+                <hr class="my-2">
+
+                <div>
+                  <strong>📚 Sản phẩm:</strong>
+                  <div class="mt-3">
+                    {% for p in (o.get('product') or []) %}
+                      <div class="d-flex gap-3 mb-3 p-2 bg-light rounded">
+                        <div>
+                          <img src="{{ p.get('image_url') or 'https://via.placeholder.com/80x100?text=No+Image' }}"
+                              alt="{{ p.get('name') or 'Sản phẩm' }}"
+                              style="width:80px; height:100px; object-fit:cover; border-radius:6px;"
+                              onerror="this.src='https://via.placeholder.com/80x100?text=No+Image'">
+                        </div>
+                        <div class="flex-grow-1">
+                          <strong>{{ p.get('name') or 'Sản phẩm' }}</strong><br>
+                          <small class="text-muted">
+                            Số lượng:
+                            <span class="badge bg-primary">{{ p.get('quantity') or 1 }}</span>
+                          </small><br>
+                          {% if p.get('price') %}
+                            <small class="text-muted">
+                              Giá: <strong class="text-danger">{{ p.get('price') }} VND</strong>
+                            </small>
+                          {% endif %}
+                        </div>
+                      </div>
+                    {% endfor %}
                   </div>
                 </div>
               </div>
@@ -177,6 +212,9 @@
             <p class="text-muted text-center">Chưa có đơn hàng nào.</p>
           {% endif %}
         </div>
+
+
+
 
       </div>
     </div>
