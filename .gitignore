@@ -1,2 +1,8 @@
-git rm -r --cached .flask_session
-git add .gitignore
+# Bỏ qua thư mục cache của Python
+__pycache__/
+
+# Bỏ qua thư mục session của Flask
+.flask_session/
+
+# Bỏ qua các file Python đã biên dịch
+*.pyc
