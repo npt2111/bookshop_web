@@ -3,94 +3,370 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🛒 Giỏ hàng của bạn</title>
+  <title>🛒 TVTBookShop – Giỏ hàng</title>
+
+  <!-- Bootstrap -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
   <style>
-    body { background: linear-gradient(135deg,#f8f9fa,#eef2ff); font-family:'Poppins',sans-serif; padding-top:80px; color:#333 }
-    .cart-container{ background:#fff;padding:25px;border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,0.06) }
-    .cart-item{ border-bottom:1px solid #eee;padding:15px 0; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap }
-    .cart-item img{ width:90px;height:120px; object-fit:contain; border-radius:8px; background:#fafafa }
-    .item-name{ font-weight:600; max-width:220px; word-wrap:break-word; line-height:1.3 }
-    .item-price{ font-weight:700;color:#ff4081 }
-    .btn-qty{ border:none;width:36px;height:36px;border-radius:50%; background:#007bff;color:#fff;font-weight:700 }
-    .btn-qty:hover{ opacity:0.9 }
-    .cart-total{ font-size:1.3rem;font-weight:700;color:#007bff }
-    @media (max-width:768px){ .cart-item{ flex-direction:column; text-align:center } .cart-item img{ margin-bottom:10px } }
+    body {
+      background: linear-gradient(135deg, #fff5f7, #f8fbff);
+      font-family: 'Poppins', sans-serif;
+      padding-top: 80px;
+      color: #00224a;
+    }
+
+    .cart-container {
+      background: #ffffff;
+      padding: 25px;
+      border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.07);
+      animation: fadeSlide .6s ease-out;
+    }
+
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(30px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ITEM */
+    .cart-item {
+      padding: 16px 0;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      transition: 0.25s ease;
+      opacity: 1;
+    }
+
+    /* Hover nâng item */
+    .cart-item:hover {
+      background: #fff3f5;
+      border-radius: 12px;
+      transform: translateX(5px);
+      box-shadow: 0 6px 16px rgba(255, 77, 109, 0.18);
+    }
+
+    /* Animation khi xóa */
+    .fade-out {
+      animation: fadeOut .4s forwards ease-in;
+    }
+
+    @keyframes fadeOut {
+      from { opacity: 1; transform: translateX(0); }
+      to   { opacity: 0; transform: translateX(-40px); }
+    }
+
+    /* IMG */
+    .cart-item img {
+      width: 90px;
+      height: 120px;
+      object-fit: contain;
+      border-radius: 10px;
+      background: #f8f9fa;
+      padding: 5px;
+      transition: 0.25s;
+    }
+
+    .cart-item img:hover { transform: scale(1.06); }
+
+    /* TEXTS */
+    .item-name { font-weight: 600; max-width: 220px; }
+
+    .item-price { font-weight: 700; color: #ff4d6d; }
+
+
+/* BUTTONS CHUNG */
+button, a.btn {
+  font-weight: 600;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* BTN SỐ LƯỢNG */
+.btn-qty {
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff758c, #ff2f50);
+  color: #fff;
+  font-weight: 700;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(255,77,109,0.4);
+}
+
+.btn-qty:hover {
+  transform: scale(1.15);
+  background: linear-gradient(135deg, #ff2f50, #ff758c);
+  box-shadow: 0 6px 16px rgba(255,77,109,0.5);
+}
+
+/* BTN XÓA ĐÃ CHỌN */
+#deleteSelectedBtn {
+  border-radius: 14px;
+  border: none;
+  padding: 6px 14px;
+  background: #ff6b81;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: 0 4px 12px rgba(255,107,129,0.3);
+}
+
+#deleteSelectedBtn:hover {
+  background: #ff4d6d;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(255,77,109,0.35);
+}
+
+/* BTN THANH TOÁN */
+.btn-success {
+  border-radius: 14px;
+  padding: 6px 18px;
+  font-weight: 700;
+  font-size: 14px;
+  background: linear-gradient(135deg, #28c76f, #20b24a);
+  box-shadow: 0 4px 12px rgba(40,199,111,0.3);
+  border: none;
+}
+
+.btn-success:hover {
+  background: linear-gradient(135deg, #20b24a, #28c76f);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(32,178,74,0.4);
+}
+
+/* BTN XÓA TẤT CẢ */
+#clearAllBtn {
+  border-radius: 14px;
+  padding: 6px 18px;
+  font-weight: 600;
+  font-size: 14px;
+  background: linear-gradient(135deg, #ff758c, #ff2f50);
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 12px rgba(255,77,109,0.3);
+}
+
+#clearAllBtn:hover {
+  background: linear-gradient(135deg, #ff2f50, #ff758c);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(255,77,109,0.35);
+}
+
+/* BTN TIẾP TỤC MUA */
+a.btn-primary {
+  border-radius: 14px;
+  padding: 6px 18px;
+  font-weight: 600;
+  font-size: 14px;
+  background: linear-gradient(135deg, #4099ff, #007bff);
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 12px rgba(64,153,255,0.3);
+}
+
+a.btn-primary:hover {
+  background: linear-gradient(135deg, #007bff, #4099ff);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(64,153,255,0.35);
+}
+
+
+    .cart-total {
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: #00224a;
+    }
+
+    @media (max-width: 768px) {
+      .cart-item { flex-direction: column; text-align: center; }
+      .cart-item img { margin-bottom: 12px; }
+    }
   </style>
+  <style>
+.skeleton-img {
+  background: linear-gradient(90deg, #eee, #ddd, #eee);
+  background-size: 200% 100%;
+  animation: skeleton 1.2s infinite linear;
+}
+
+@keyframes skeleton {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+img.loaded {
+  animation: none !important;
+  background: none !important;
+}
+</style>
+
+<script>
+document.querySelectorAll(".skeleton-img").forEach(img => {
+  img.addEventListener("load", () => img.classList.add("loaded"));
+});
+</script>
+
 </head>
+
 <body>
+
   <div class="container">
-    <h2 class="text-center mb-4">🛍️ Giỏ hàng của bạn</h2>
+    <h2 class="text-center mb-4 fw-bold" style="color:#ff2f50;">
+      🛍️ TVTBookShop – Giỏ hàng
+    </h2>
 
     <div class="cart-container">
+
       {% if cart %}
       <form id="bulkForm" action="{{ url_for('cart_bulk_action') }}" method="POST">
+
+        <!-- TOP CONTROL -->
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
           <div>
             <input type="checkbox" id="selectAll" class="form-check-input me-2">
-            <label for="selectAll" class="form-check-label fw-bold">Chọn tất cả</label>
+            <label class="fw-bold" for="selectAll">Chọn tất cả</label>
           </div>
-          <div class="d-flex gap-2">
-            <button type="submit" name="action" value="delete" class="btn btn-outline-danger btn-sm">🗑️ Xóa đã chọn</button>
-           <button type="submit" formaction="{{ url_for('checkout_selected') }}" formmethod="post"
-        class="btn btn-success btn-sm">💳 Thanh toán đã chọn</button>
 
+          <div class="d-flex gap-2">
+            <button type="button" id="deleteSelectedBtn" class="btn btn-outline-danger btn-sm">
+              Xóa đã chọn
+            </button>
+
+            <button type="submit" formaction="{{ url_for('checkout_selected') }}"
+              formmethod="post" class="btn btn-success btn-sm">
+              Thanh toán đã chọn
+            </button>
           </div>
         </div>
 
+        <!-- ITEMS -->
         {% for item in cart %}
-        <div class="cart-item">
+        <div class="cart-item" id="item-{{ item.id }}">
           <div class="d-flex align-items-center gap-3 flex-wrap">
             <input type="checkbox" name="selected_ids" value="{{ item.id }}" class="form-check-input select-item">
+
             <img src="{{ item.image_url }}" alt="{{ item.name }}">
+
             <div>
               <p class="item-name mb-1">{{ item.name }}</p>
-              <p class="text-muted mb-1">Giá: <span class="item-price">{{ "{:,.0f}".format(item.price) }} ₫</span></p>
+              <p class="text-muted mb-1">
+                Giá: <span class="item-price">{{ "{:,.0f}".format(item.price) }} ₫</span>
+              </p>
             </div>
           </div>
 
           <div class="d-flex align-items-center gap-2 mt-2 mt-md-0">
-            <button type="button" class="btn-qty" onclick="changeQty({{ item.id }}, -1)">-</button>
-            <input type="number" id="qty-{{ item.id }}" value="{{ item.quantity }}" min="1" class="form-control text-center" style="width:70px;">
+            <button type="button" class="btn-qty" onclick="changeQty({{ item.id }}, -1)">−</button>
+
+            <input type="number" id="qty-{{ item.id }}" value="{{ item.quantity }}"
+                   min="1" class="form-control text-center"
+                   style="width:70px; border-radius:12px;">
+
             <button type="button" class="btn-qty" onclick="changeQty({{ item.id }}, 1)">+</button>
-            <span class="fw-bold ms-3">{{ "{:,.0f}".format(item.price * item.quantity) }} ₫</span>
+
+            <span class="fw-bold ms-3 text-primary">
+              {{ "{:,.0f}".format(item.price * item.quantity) }} ₫
+            </span>
           </div>
         </div>
         {% endfor %}
 
         <div class="text-end mt-4">
           <p class="cart-total">Tổng cộng: {{ "{:,.0f}".format(total) }} ₫</p>
+
           <div class="d-flex justify-content-end gap-3 flex-wrap">
-            <a href="{{ url_for('clear_cart') }}" class="btn btn-outline-danger">🗑️ Xóa tất cả</a>
-            <a href="{{ url_for('index') }}" class="btn btn-primary">⬅️ Tiếp tục mua</a>
+            <button type="button" id="clearAllBtn" class="btn btn-outline-danger">
+              Xóa tất cả
+            </button>
+
+            <a href="{{ url_for('index') }}" class="btn btn-primary">
+              Tiếp tục mua
+            </a>
           </div>
         </div>
       </form>
+
       {% else %}
         <p class="text-center text-muted">🕸️ Giỏ hàng của bạn hiện trống!</p>
         <div class="text-center mt-3">
           <a href="{{ url_for('index') }}" class="btn btn-primary">🛒 Mua ngay</a>
         </div>
       {% endif %}
+
     </div>
   </div>
 
+<!-- JS AREA -->
 <script>
-  // ✅ Chọn tất cả checkbox
-  document.getElementById('selectAll')?.addEventListener('change', function() {
-    document.querySelectorAll('.select-item').forEach(cb => cb.checked = this.checked);
+  // Chọn tất cả
+  document.getElementById("selectAll")?.addEventListener("change", function () {
+    document.querySelectorAll(".select-item").forEach(cb => cb.checked = this.checked);
   });
 
-  // ✅ Thay đổi số lượng qua fetch (min 1)
+  // AJAX thay đổi số lượng
   function changeQty(id, delta) {
-    const input = document.getElementById('qty-' + id);
+    const input = document.getElementById("qty-" + id);
     let newQty = parseInt(input.value || "1") + delta;
     if (newQty < 1) newQty = 1;
     input.value = newQty;
+
     fetch(`/update_cart_ajax/${id}?qty=${newQty}`)
       .then(resp => resp.ok ? location.reload() : null)
       .catch(console.error);
   }
+
+  // Popup xác nhận – Xóa tất cả
+  document.getElementById("clearAllBtn")?.addEventListener("click", function () {
+    Swal.fire({
+      title: "Xóa tất cả?",
+      text: "Hành động này không thể hoàn tác!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ff4d6d",
+      confirmButtonText: "Xóa tất cả",
+      cancelButtonText: "Hủy"
+    }).then(result => {
+      if (result.isConfirmed) {
+        window.location.href = "{{ url_for('clear_cart') }}";
+      }
+    });
+  });
+
+  // Popup xác nhận – Xóa đã chọn
+  document.getElementById("deleteSelectedBtn")?.addEventListener("click", function () {
+    const count = document.querySelectorAll(".select-item:checked").length;
+    if (count === 0) {
+      Swal.fire("Chưa chọn gì!", "Hãy chọn ít nhất 1 sản phẩm.", "info");
+      return;
+    }
+
+    Swal.fire({
+      title: `Xóa ${count} sản phẩm?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ff4d6d",
+      confirmButtonText: "Xóa",
+      cancelButtonText: "Hủy"
+    }).then(result => {
+      if (result.isConfirmed) {
+        document.getElementById("bulkForm").submit();
+      }
+    });
+  });
 </script>
+
 </body>
 </html>

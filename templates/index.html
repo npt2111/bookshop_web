@@ -309,21 +309,7 @@
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    // // 🛒 Giỏ hàng demo
-    // let cartCount = 0;
-    // const cartBadge = document.getElementById('cart-count');
-    // document.querySelectorAll('.btn-outline-primary').forEach(btn => {
-    //   btn.addEventListener('click', (e) => {
-    //     e.preventDefault();
-    //     cartCount++;
-    //     cartBadge.textContent = cartCount;
-    //     alert('📗 Sách đã được thêm vào giỏ hàng!');
-    //   });
-    // });
-
-    
-  </script>
+ 
   <!-- 🎡 Nút nổi Vòng quay may mắn -->
   <button class="lucky-float-btn" id="openSpin">
     🎯
@@ -448,9 +434,33 @@
   const ctx = wheelCanvas.getContext("2d");
 
   const prizes = [
-    "Giảm 10%", "Giảm 20%", "Giảm 30%", "Cái nịt",
-    "Giảm 5%", "Giảm 50%", "Cái nịt", "Giảm 15%"
+    "Giảm 10%", "Giảm 20%", "Giảm 30%", "Mất lượt",
+    "Giảm 5%", "Giảm 50%", "Mất lượt", "Giảm 15%"
   ];
+
+  // 🎯 TỈ LỆ XUẤT HIỆN MỖI Ô
+  const weights = [
+    7, // Giảm 10%
+    1,  // Giảm 20%
+    1,  // Giảm 30%
+    42.5, // Cái nịt
+    13, // Giảm 5%
+    0.5,  // Giảm 50%
+    31, // Cái nịt
+    5   // Giảm 15%
+  ];
+
+  // ➕ Hàm random theo tỉ lệ
+  function weightedRandom(weights) {
+    const total = weights.reduce((a,b) => a + b, 0);
+    let r = Math.random() * total;
+
+    for (let i = 0; i < weights.length; i++) {
+      if (r < weights[i]) return i;
+      r -= weights[i];
+    }
+    return 0;
+  }
 
   const colors = ["#ff7675","#74b9ff","#55efc4","#ffeaa7","#fd79a8","#a29bfe","#fab1a0","#81ecec"];
   const slice = 360 / prizes.length;
@@ -480,42 +490,88 @@
     }
   }
   drawWheel();
+function extractNumber(won) {
+    const match = won.match(/\d+/);
+    return match ? parseInt(match[0]) : 0; // Nếu không có số → 0
+}
 
   // 🎯 Quay vòng
-  spinBtn.addEventListener("click", () => {
+// 🎯 Quay vòng
+spinBtn.addEventListener("click", async () => {
     if (spinning) return;
+
+    // 🔍 Kiểm tra backend xem hôm nay đã quay chưa
+    try {
+        let check = await fetch("/check_spin_today");
+        let data = await check.json();
+
+        if (!data.allowed) {
+            result.innerHTML = "❌ Hôm nay bạn đã quay rồi!";
+            return;
+        }
+    } catch (err) {
+        console.error("Lỗi /check_spin_today:", err);
+        result.innerHTML = "⚠️ Lỗi kết nối server!";
+        return;
+    }
+
+    // Nếu được phép quay
     spinning = true;
     result.textContent = "";
-    
-    const random = Math.floor(Math.random() * prizes.length);
+
+    const random = weightedRandom(weights); // RANDOM THEO TỈ LỆ
     const finalAngle = 360 * 8 + (360 - random * slice - slice / 2);
-    
-    let current = 0;
+
     const duration = 4000;
     const startTime = performance.now();
-    
+
     function animate(now) {
-      const progress = Math.min((now - startTime) / duration, 1);
-      spinAngle = finalAngle * easeOutCubic(progress);
-      ctx.clearRect(0,0,400,400);
-      ctx.save();
-      ctx.translate(200,200);
-      ctx.rotate((spinAngle * Math.PI / 180));
-      ctx.translate(-200,-200);
-      drawWheel();
-      ctx.restore();
-      
-      if (progress < 1) requestAnimationFrame(animate);
-      else {
-        spinning = false;
-        const won = prizes[random];
-        result.innerHTML = won.includes("Chúc") 
-          ? "😢 " + won
-          : "🎉 Bạn trúng: <b>" + won + "</b>";
-      }
+        const progress = Math.min((now - startTime) / duration, 1);
+        spinAngle = finalAngle * easeOutCubic(progress);
+
+        ctx.clearRect(0,0,400,400);
+        ctx.save();
+        ctx.translate(200,200);
+        ctx.rotate((spinAngle * Math.PI / 180));
+        ctx.translate(-200,-200);
+        drawWheel();
+        ctx.restore();
+
+        if (progress < 1) {
+            requestAnimationFrame(animate);
+        } else {
+            spinning = false;
+            const won = prizes[random];
+
+            if (won === "Mất lượt") {
+                result.innerHTML = "😢 Chúc bạn may mắn lần sau!";
+                
+                // Lưu lại rằng user đã quay rồi hôm nay — dù không trúng
+                fetch("/save_spin_today", { method: "POST" });
+
+            } else {
+                result.innerHTML = "🎉 Bạn trúng: <b>" + won + "</b>";
+                let voucherValue = extractNumber(won);
+
+                // Lưu voucher
+                fetch("/save_voucher", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ voucher: voucherValue })
+                })
+                .then(res => res.json())
+                .then(data => console.log("Đã lưu voucher:", data))
+                .catch(err => console.error("Lỗi lưu voucher:", err));
+
+                // Lưu ngày quay hôm nay
+                fetch("/save_spin_today", { method: "POST" });
+            }
+        }
     }
+
     requestAnimationFrame(animate);
-  });
+});
+
 
   function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
 

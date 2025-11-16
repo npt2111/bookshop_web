@@ -5,3 +5,7 @@ source venv/bin/activate
 pip install flask supabase python-dotenv
 
 flask run
+
+source .venv/bin/activate
+
+thoát: deactivate

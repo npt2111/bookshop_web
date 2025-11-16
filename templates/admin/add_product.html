@@ -50,7 +50,9 @@
     </div>
 
     <div class="d-flex justify-content-between">
-      <a href="{{ url_for('product') }}" class="btn btn-secondary">⬅️ Quay lại</a>
+      <a href="javascript:history.back()" class="btn btn-outline-primary mb-3">
+        <i class="fa-solid fa-caret-left"></i>Quay lại
+      </a>
       <button type="submit" class="btn btn-success">💾 Thêm sản phẩm</button>
     </div>
   </form>

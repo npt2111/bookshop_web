@@ -55,6 +55,57 @@
     }
     .hidden { display: none; }
   </style>
+  <style>
+/* Ẩn phần chi tiết sản phẩm mặc định */
+.order-card .order-details {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease, opacity 0.4s ease;
+  opacity: 0;
+}
+
+/* Khi hover lên card, hiện chi tiết */
+.order-card:hover .order-details {
+  max-height: 1000px; /* đủ để hiển thị nội dung */
+  opacity: 1;
+}
+</style>
+  <style>
+/* Voucher cards */
+.voucher-list { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-start; }
+.voucher-card {
+  min-width:120px;
+  max-width:220px;
+  display:flex;
+  gap:12px;
+  align-items:center;
+  padding:10px 12px;
+  border-radius:10px;
+  border:1px solid rgba(0,0,0,0.06);
+  background:linear-gradient(180deg, #ffffff, #fbfbff);
+  box-shadow:0 6px 18px rgba(12,12,20,0.04);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.voucher-card:hover { transform: translateY(-4px); box-shadow:0 10px 30px rgba(12,12,20,0.07); }
+
+.voucher-left { 
+  width:46px; height:46px; border-radius:8px; 
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; color:#fff; font-size:0.9rem;
+}
+.voucher-info { flex:1; min-width:0; }
+.voucher-name { font-weight:700; font-size:0.95rem; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.voucher-meta { font-size:0.85rem; color:#6b7280; margin-top:4px; display:flex; gap:8px; align-items:center; }
+
+.voucher-qty { background:rgba(0,0,0,0.06); padding:4px 8px; border-radius:999px; font-weight:700; font-size:0.85rem; }
+
+.voucher-chip { font-size:0.78rem; padding:6px 8px; border-radius:999px; border:1px dashed rgba(0,0,0,0.06); color:#374151; }
+
+@media (max-width:560px) {
+  .voucher-card { min-width:100%; max-width:100%; }
+  .voucher-left { width:48px; height:48px; }
+}
+</style>
 </head>
 <body>
   <!-- 🌟 Navbar -->
@@ -155,66 +206,134 @@
           {% endif %}
         </div>
 
-        <!-- 📦 Đơn hàng gần đây -->
-        <!-- 📦 Đơn hàng gần đây -->
-        <div class="card p-4">
-          <h4 class="mb-4">📦 Đơn hàng gần đây</h4>
+       
+          <div class="card p-4 mb-4">
+            <h4 class="mb-3">🎁 Voucher của bạn</h4>
 
-          {% if orders %}
-            {% for o in orders %}
-              <div class="card order-card p-3 mb-3">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                  <div>
-                    <strong>Mã đơn:</strong> {{ o.get('order_id') or o.get('id') }}<br>
-                    <small class="text-muted">Ngày: {{ o.get('created_at') or '-' }}</small>
-                  </div>
-                  <div class="text-end">
-                    <strong>Tổng:</strong> {{ o.get('total_amount') or '-' }} VND<br>
-                    <small class="text-muted">
-                      Trạng thái: 
-                      <span class="badge bg-info">{{ o.get('status') or '-' }}</span>
-                    </small>
-                  </div>
-                </div>
+            {% set vs = (vouchers if (vouchers is defined) else (customer_vouchers if (customer_vouchers is defined) else []) ) %}
 
-                <hr class="my-2">
+            {% if vs %}
+              <div class="voucher-list">
+                {% for v in vs %}
+                  {# v can be {percent, name, quantity} or {code, name, quantity} or key/value pair #}
+                  {% set label = v.name if v.name is defined else (v.get('name') if v.get('name') is defined else (("Giảm " ~ v.percent ~ "%") if v.percent is defined else v[0])) %}
+                  {% set qty = v.quantity if v.quantity is defined else (v.get('quantity') if v.get('quantity') is defined else (v[1] if v|length>1 else 1)) %}
+                  {% set pct = v.percent if v.percent is defined else (v.get('percent') if v.get('percent') is defined else (v.code if v.code is defined else '')) %}
 
-                <div>
-                  <strong>📚 Sản phẩm:</strong>
-                  <div class="mt-3">
-                    {% for p in (o.get('product') or []) %}
-                      <div class="d-flex gap-3 mb-3 p-2 bg-light rounded">
-                        <div>
-                          <img src="{{ p.get('image_url') or 'https://via.placeholder.com/80x100?text=No+Image' }}"
-                              alt="{{ p.get('name') or 'Sản phẩm' }}"
-                              style="width:80px; height:100px; object-fit:cover; border-radius:6px;"
-                              onerror="this.src='https://via.placeholder.com/80x100?text=No+Image'">
-                        </div>
-                        <div class="flex-grow-1">
-                          <strong>{{ p.get('name') or 'Sản phẩm' }}</strong><br>
-                          <small class="text-muted">
-                            Số lượng:
-                            <span class="badge bg-primary">{{ p.get('quantity') or 1 }}</span>
-                          </small><br>
-                          {% if p.get('price') %}
-                            <small class="text-muted">
-                              Giá: <strong class="text-danger">{{ p.get('price') }} VND</strong>
-                            </small>
-                          {% endif %}
-                        </div>
+                  {# Decide color based on percent (numeric) #}
+                  {% set pnum = None %}
+                  {% if pct %}
+                    {% set pct_str = pct|string %}
+                    {% set pnum = pct_str.replace('%', '') %}
+
+                  {% endif %}
+                  {% if pnum is none %}
+                    {% set bg = '#9CA3FF' %}
+                  {% elif pnum|int >= 50 %}
+                    {% set bg = '#F87171' %}
+                  {% elif pnum|int >= 20 %}
+                    {% set bg = '#FBBF24' %}
+                  {% elif pnum|int >= 10 %}
+                    {% set bg = '#60A5FA' %}
+                  {% else %}
+                    {% set bg = '#34D399' %}
+                  {% endif %}
+
+                  <div class="voucher-card" role="group" aria-label="voucher-{{ loop.index }}">
+                    <div class="voucher-left" style="background:{{ bg }};">
+                      {% if pct %}
+                        <div>{{ pct }}{% if pct|string|length <= 3 %} %{% endif %}</div>
+                      {% else %}
+                        <div>🎟️</div>
+                      {% endif %}
+                    </div>
+
+                    <div class="voucher-info">
+                      <p class="voucher-name" title="{{ label }}">{{ label }}</p>
+                      <div class="voucher-meta">
+                        <div class="voucher-qty">× {{ qty }}</div>
+                        <!-- <div class="voucher-chip">Mã: {{ pct or (v.code if v.code is defined else (v.percent if v.percent is defined else '—')) }}</div> -->
                       </div>
-                    {% endfor %}
+                    </div>
                   </div>
-                </div>
+                {% endfor %}
               </div>
-            {% endfor %}
-          {% else %}
-            <p class="text-muted text-center">Chưa có đơn hàng nào.</p>
-          {% endif %}
+            {% else %}
+              <p class="text-muted mb-0">Bạn chưa có voucher nào.</p>
+            {% endif %}
+          </div>
+
+        <!-- 📦 Đơn hàng gần đây -->
+        
+<div class="card p-4">
+  <h4 class="mb-4">📦 Đơn hàng gần đây</h4>
+
+  {% if orders %}
+    {% for o in orders %}
+      <div class="card order-card p-3 mb-3">
+        <!-- Thông tin cơ bản luôn hiển thị -->
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div>
+            <strong>Mã đơn:</strong> {{ o.get('order_id') or o.get('id') }}<br>
+            <small class="text-muted">Ngày: {{ o.get('created_at') or '-' }}</small>
+          </div>
+          <div class="text-end">
+            <strong>Tổng:</strong> {{ o.get('total_amount') or '-' }} VND<br>
+            <small class="text-muted">
+              Trạng thái: 
+              <span class="badge bg-info">{{ o.get('status') or '-' }}</span>
+            </small>
+          </div>
         </div>
 
-
-
+        <!-- Phần sản phẩm chỉ hiển thị khi hover -->
+        <div class="order-details">
+          <hr class="my-2">
+          <div>
+            <strong>📚 Sản phẩm:</strong>
+            <div class="mt-3">
+              {% for p in (o.get('product') or []) %}
+                <div class="d-flex gap-3 mb-3 p-2 bg-light rounded">
+                  <div>
+                    <img src="{{ p.get('image_url') or 'https://via.placeholder.com/80x100?text=No+Image' }}"
+                         alt="{{ p.get('name') or 'Sản phẩm' }}"
+                         style="width:80px; height:100px; object-fit:cover; border-radius:6px;"
+                         onerror="this.src='https://via.placeholder.com/80x100?text=No+Image'">
+                  </div>
+                  <div class="flex-grow-1">
+                    <strong>{{ p.get('name') or 'Sản phẩm' }}</strong><br>
+                    <small class="text-muted">
+                      Số lượng:
+                      <span class="badge bg-primary">{{ p.get('quantity') or 1 }}</span>
+                    </small><br>
+                    {% if p.get('price') %}
+                      <small class="text-muted">
+                        Giá: <strong class="text-danger">{{ p.get('price') }} VND</strong>
+                      </small>
+                    {% endif %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p class="text-muted text-center">Chưa có đơn hàng nào.</p>
+  {% endif %}
+  {% if total_pages > 1 %}
+<nav aria-label="Orders pagination">
+  <ul class="pagination justify-content-center mt-3">
+    {% for p in range(1, total_pages + 1) %}
+      <li class="page-item {% if p == page %}active{% endif %}">
+        <a class="page-link" href="{{ url_for('profile', page=p) }}">{{ p }}</a>
+      </li>
+    {% endfor %}
+  </ul>
+</nav>
+{% endif %}
+</div>
 
       </div>
     </div>

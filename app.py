@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash
 from supabase import create_client
 from werkzeug.utils import secure_filename
 
@@ -10,6 +10,8 @@ import random
 from datetime import datetime
 import json
 app = Flask(__name__)
+
+
 
 # -------------------------
 # Make session available in all Jinja templates
@@ -281,10 +283,113 @@ def index():
     )
 
 
+def convert_json_keys_to_str(obj):
+    """Đảm bảo tất cả key của dict là string để tránh lỗi jsonify"""
+    if isinstance(obj, dict):
+        return {str(k): convert_json_keys_to_str(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_json_keys_to_str(i) for i in obj]
+    else:
+        return obj
+@app.route("/save_voucher", methods=["POST"])
+def save_voucher():
+    if "user_id" not in session:
+        return jsonify({"error": "Not logged in"}), 400
+
+    data = request.get_json()
+    voucher_code = data.get("voucher")  # ví dụ "10"
+    if not voucher_code:
+        return jsonify({"error": "No voucher code provided"}), 400
+
+    customer_id = session.get("user_id")
+
+    # Lấy voucher hiện tại
+    resp = supabase.table("customer").select("voucher").eq("id", customer_id).execute()
+    current_voucher = resp.data[0].get("voucher") or {}
+
+    # Nếu là string JSON, parse về dict
+    if isinstance(current_voucher, str):
+        try:
+            current_voucher = json.loads(current_voucher)
+        except:
+            current_voucher = {}
+
+    # Chuyển tất cả key thành string
+    current_voucher = {str(k): int(v) for k, v in current_voucher.items()}
+
+    # Cập nhật số lượng voucher
+    voucher_code_str = str(voucher_code)
+    if voucher_code_str in current_voucher:
+        current_voucher[voucher_code_str] += 1
+    else:
+        current_voucher[voucher_code_str] = 1
+
+    # Lưu lại vào Supabase
+    supabase.table("customer").update({
+        "voucher": current_voucher
+    }).eq("id", customer_id).execute()
+    return jsonify({"status": "success", "voucher": current_voucher})
+@app.route('/check_spin_today')
+def check_spin_today():
+    if 'user_id' not in session:
+        return jsonify({"allowed": False, "message": "Not logged in"}), 401
+
+    user_id = session['user_id']
+
+    try:
+        res = supabase.table("customer").select("last_spin").eq("id", user_id).single().execute()
+        customer = res.data
+
+        from datetime import datetime
+        today = datetime.now().strftime("%Y-%m-%d")
+
+        last_spin = customer.get("last_spin")
+
+        # Nếu chưa từng quay
+        if not last_spin:
+            return jsonify({"allowed": True})
+
+        # Lấy phần ngày của last_spin
+        last_date = last_spin.split("T")[0]   # ← FIX QUAN TRỌNG
+
+        # Nếu không phải hôm nay thì được quay
+        if last_date != today:
+            return jsonify({"allowed": True})
+
+        # Nếu đã quay hôm nay
+        return jsonify({"allowed": False})
+
+    except Exception as e:
+        print("Lỗi check_spin_today:", e)
+        return jsonify({"allowed": False, "error": str(e)}), 500
+@app.route('/save_spin_today', methods=['POST'])
+def save_spin_today():
+    if 'user_id' not in session:
+        return jsonify({"success": False, "message": "User not logged in"}), 401
+
+    user_id = session['user_id']
+
+    from datetime import datetime
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    try:
+        supabase.table("customer").update({
+            "last_spin": today
+        }).eq("id", user_id).execute()
+
+        return jsonify({"success": True, "date": today})
+
+    except Exception as e:
+        print("Lỗi save_spin_today:", e)
+        return jsonify({"success": False, "error": str(e)}), 500
+
 
 # -------------------------
 # Trang profile
 # -------------------------
+from math import ceil
+from flask import request
+
 @app.route('/profile')
 def profile():
     # Require login
@@ -292,43 +397,97 @@ def profile():
         return redirect(url_for('login'))
 
     email = session.get('email')
-    # Lấy thông tin customer
+
+    # --- Lấy thông tin customer ---
     try:
         res_customer = supabase.table('customer').select('*').eq('email', email).single().execute()
         customer = res_customer.data
     except Exception:
         customer = None
 
-    # Lấy đơn hàng của user (cột product có thể là JSON)
+    # --- Lấy đơn hàng ---
     try:
         res_orders = supabase.table('orders').select('*').eq('email', email).order('id', desc=True).execute()
-        orders = res_orders.data or []
+        all_orders = res_orders.data or []
     except Exception:
-        orders = []
+        all_orders = []
 
-    # Lấy tất cả sản phẩm từ inventory để mapping ảnh
+    # --- Phân trang ---
+    per_page = 4
+    page = request.args.get('page', 1, type=int)
+    total_orders = len(all_orders)
+    total_pages = ceil(total_orders / per_page)
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    orders = all_orders[start_idx:end_idx]
+
+    # --- Lấy inventory ---
     try:
         res_inventory = supabase.table('inventory').select('id, product, image_url').execute()
         inventory_map = {p['id']: p for p in (res_inventory.data or [])}
     except Exception:
         inventory_map = {}
 
-    # Parse product field if stored as string và thêm image_url
+    # --- Lấy bảng voucher ---
+    voucher_table_map = {}
+    try:
+        res_voucher_table = supabase.table('voucher').select('name_voucher, percent').execute()
+        if res_voucher_table.data:
+            for row in res_voucher_table.data:
+                try:
+                    percent_val = int(row["percent"])
+                except:
+                    continue
+                voucher_table_map[str(percent_val)] = row["name_voucher"]
+    except Exception:
+        voucher_table_map = {}
+
+    # --- Ghép voucher của customer ---
+    customer_vouchers = []
+    if customer and customer.get("voucher"):
+        current_voucher = customer.get("voucher")
+        if isinstance(current_voucher, str):
+            try:
+                current_voucher = json.loads(current_voucher)
+            except:
+                current_voucher = {}
+
+        for percent, qty in current_voucher.items():
+            try:
+                percent_str = str(int(percent))
+            except:
+                percent_str = str(percent)
+
+            customer_vouchers.append({
+                "percent": percent_str,
+                "name": voucher_table_map.get(percent_str, f"Giảm {percent_str}%"),
+                "quantity": qty
+            })
+
+    # --- Gán image URL cho product trong order ---
     for o in orders:
         if isinstance(o.get('product'), str):
             try:
                 o['product'] = json.loads(o['product'])
-            except Exception:
-                pass
-        
-        # Thêm image_url cho từng product trong đơn hàng
+            except:
+                o['product'] = []
+
         if isinstance(o.get('product'), list):
             for item in o['product']:
-                product_id = item.get('id')
-                if product_id and product_id in inventory_map:
-                    item['image_url'] = inventory_map[product_id].get('image_url', '')
+                pid = item.get('id')
+                if pid in inventory_map:
+                    item['image_url'] = inventory_map[pid].get('image_url', '')
 
-    return render_template('profile.html', customer=customer, orders=orders,cart_count=len(session.get('cart', [])))
+    # --- Render ---
+    return render_template(
+        'profile.html',
+        customer=customer,
+        orders=orders,
+        customer_vouchers=customer_vouchers,
+        cart_count=len(session.get('cart', [])),
+        page=page,
+        total_pages=total_pages
+    )
 
 @app.route("/profile/update", methods=["GET", "POST"])
 def update_profile():
@@ -564,7 +723,23 @@ def product_detail(product_id):
             print(f"❌ Error checking purchase history: {str(e)}")
             pass
     
-    return render_template("product_detail.html", product=product, reviews=reviews, user_has_purchased=user_has_purchased, user_orders=user_orders,cart_count=len(session.get('cart', [])))
+    # --- Hybrid recommendations ---
+    user_id = session.get("user_id")
+    if user_id:
+        recommendations = hybrid_recommendations(user_id=user_id, product_id=product_id, top_n=4)
+    else:
+        recommendations = []  # hoặc lấy 4 sản phẩm ngẫu nhiên
+
+    return render_template("product_detail.html", 
+                           product=product, 
+                           reviews=reviews, 
+                           user_has_purchased=user_has_purchased, 
+                           user_orders=user_orders,cart_count=len(session.get('cart', [])),
+                           recommendations=recommendations.to_dict(orient="records") 
+                           if isinstance(recommendations, pd.DataFrame) 
+                           else recommendations
+    
+                           )
       
 
 # -------------------------
@@ -665,7 +840,7 @@ def add_review():
 # -------------------------
 # Thêm vào giỏ hàng
 # -------------------------
-@app.route("/add_to_cart/<int:product_id>")
+@app.route("/add_to_cart/<int:product_id>", )
 def add_to_cart(product_id):
     product = supabase.table("inventory").select("*").eq("id", product_id).single().execute().data
     if not product:
@@ -1032,6 +1207,7 @@ def process_checkout():
         "total_amount": total,
         "status": "pending",
         "customer_id": cus_id,
+        "payment": 0,
         "created_at": datetime.utcnow().isoformat()
     }).execute()
 
@@ -1267,22 +1443,6 @@ def lucky_spin():
 
 
 
-#Train goi y san pham
-
-# import os
-# import pickle
-# from datetime import datetime
-# from flask import Flask, jsonify, request, render_template, send_from_directory
-# import pandas as pd
-# import numpy as np
-
-# # ML libs
-# from sklearn.feature_extraction.text import TfidfVectorizer
-# from sklearn.metrics.pairwise import cosine_similarity
-# from surprise import Dataset, Reader, SVD
-# from dotenv import load_dotenv
-
-# load_dotenv()
 # -------------------------
 # MoMo Payment Routes (Sandbox)
 # -------------------------
@@ -1360,6 +1520,7 @@ def momo_success(order_id):
             "total_amount": momo_info.get('amount'),
             "status": "pending",
             "customer_id": cus_id,
+            "payment": 1,  # 1 = MoMo
             "created_at": datetime.utcnow().isoformat()
         }).execute()
         
@@ -1431,10 +1592,117 @@ def momo_cancel():
                          error='Bạn đã hủy thanh toán MoMo. Vui lòng thử lại hoặc chọn phương thức khác.')
 
 
-# load_dotenv()
 
-MODEL_PATH = "hybrid_model.pkl"
 
+
+#Train goi y san pham
+
+
+import pandas as pd
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+inventory = supabase.table("inventory").select("*").execute().data
+df_inventory = pd.DataFrame(inventory)
+
+# --- Dữ liệu interactions ---
+interactions = supabase.table("interactions").select("*").execute().data
+df_interactions = pd.DataFrame(interactions)
+
+# --- Dữ liệu customer ---
+customers = supabase.table("customer").select("*").execute().data
+df_customers = pd.DataFrame(customers)
+
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import pickle
+
+# Kết hợp các cột thành 1 chuỗi text
+df_inventory['content'] = df_inventory['product'] + " " + df_inventory['author'] + " " + df_inventory['type']
+
+# TF-IDF vectorization
+tfidf = TfidfVectorizer(stop_words='english')
+tfidf_matrix = tfidf.fit_transform(df_inventory['content'])
+
+# Tính cosine similarity
+cosine_sim = cosine_similarity(tfidf_matrix, tfidf_matrix)
+
+# Lưu model
+with open("tfidf_matrix.pkl", "wb") as f:
+    pickle.dump((tfidf_matrix, cosine_sim, df_inventory), f)
+
+print("Content-based model trained ✅")
+
+
+from surprise import Dataset, Reader, SVD
+from surprise.model_selection import train_test_split
+import pickle
+
+# Nếu rating chưa có, mặc định 0
+df_interactions['rating'] = df_interactions['rating'].fillna(0)
+
+reader = Reader(rating_scale=(0, 5))
+data = Dataset.load_from_df(df_interactions[['id_customer', 'id_product', 'rating']], reader)
+
+trainset = data.build_full_trainset()
+svd = SVD()
+svd.fit(trainset)
+
+# Lưu model
+with open("svd_model.pkl", "wb") as f:
+    pickle.dump(svd, f)
+
+print("Collaborative filtering model trained ✅")
+
+
+import numpy as np
+
+def hybrid_recommendations(user_id, product_id, top_n=5, alpha=0.5):
+    try:
+        with open("models/tfidf_matrix.pkl", "rb") as f:
+            tfidf_matrix, cosine_sim, df_inventory = pickle.load(f)
+        with open("models/svd_model.pkl", "rb") as f:
+            svd = pickle.load(f)
+
+        idx = df_inventory[df_inventory['id'].astype(str) == str(product_id)].index
+        if len(idx) == 0:
+            return pd.DataFrame(columns=['id', 'product', 'author', 'type', 'image_url'])
+        idx = idx[0]
+
+        content_scores = cosine_sim[idx]
+        product_ids = df_inventory['id'].values
+        collab_scores = np.array([svd.predict(user_id, pid).est for pid in product_ids])
+
+        hybrid_scores = alpha * content_scores + (1 - alpha) * collab_scores
+        top_indices = hybrid_scores.argsort()[::-1][1:top_n+1]
+
+        recommendations = df_inventory.iloc[top_indices]
+        return recommendations[['id', 'product', 'author', 'type', 'image_url']]
+    except Exception as e:
+        print("Error in hybrid recommendation:", e)
+        return pd.DataFrame(columns=['id', 'product', 'author', 'type', 'image_url'])
+
+from flask import session, jsonify
+
+@app.route("/recommendations/<int:product_id>")
+def recommendations(product_id):
+    # Lấy user_id từ session
+    user_id = session.get("user_id")
+    
+    if not user_id:
+        return jsonify({"error": "User not logged in"}), 401
+    
+    # Gọi hàm hybrid_recommendations
+    recs = hybrid_recommendations(user_id=user_id, product_id=product_id, top_n=4)
+    
+    if recs.empty:
+        return jsonify({"message": "No recommendations found"}), 200
+    
+    # Trả về JSON
+    return jsonify(recs.to_dict(orient="records"))
 
 
 

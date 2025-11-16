@@ -141,6 +141,86 @@
       background: #f3e5f5;
       border-left-color: #a4136f;
     }
+    .payment-methods {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+  margin-top: 15px;
+  margin-bottom: 25px; /* tạo khoảng cách rõ ràng giữa phương thức và nút */
+}
+
+.payment-method-card {
+  border: 2px solid #ddd;
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: .25s ease;
+  background: #fff;
+  position: relative;
+}
+
+.payment-method-card:hover {
+  border-color: #007bff;
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.payment-method-card input {
+  position: absolute;
+  opacity: 0;
+}
+
+.payment-method-card input:checked + .method-content {
+  color: #007bff;
+}
+
+.checkmark {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  width: 24px;
+  height: 24px;
+  border: 2px solid #ccc;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.payment-method-card input:checked ~ .checkmark {
+  background: #007bff;
+  border-color: #007bff;
+}
+
+.checkmark:after {
+  content: "";
+  display: none;
+  position: absolute;
+  left: 6px;
+  top: 3px;
+  width: 6px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.payment-method-card input:checked ~ .checkmark:after {
+  display: block;
+}
+
+/* Buttons separated nicely below */
+.checkout-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 576px) {
+  .checkout-buttons {
+    justify-content: center;
+  }
+}
+
   </style>
 </head>
 <body>
@@ -196,51 +276,37 @@
 
     <!-- Payment Method Selection -->
     <h5 class="mb-3 mt-4">💳 Chọn phương thức thanh toán</h5>
-    
-    <div class="info-box momo-info show">
-      <i class="fas fa-info-circle"></i> 
-      <strong>MoMo Sandbox:</strong> Đây là phương thức thanh toán ảo dùng để test. Không có giao dịch thực tế.
-    </div>
 
     <div class="payment-methods">
-      <!-- MoMo Payment Option -->
-      <label class="payment-method-card">
-        <input type="radio" name="payment_method" value="momo" onchange="handlePaymentMethodChange('momo')" checked>
-        <div class="method-content">
-          <div class="method-icon">📱</div>
-          <div class="method-name">MoMo</div>
-          <div class="method-desc">Thanh toán qua ví MoMo (Sandbox)</div>
-        </div>
-        <div class="checkmark"></div>
-      </label>
 
-      <!-- Cash on Delivery Option -->
-      <label class="payment-method-card">
-        <input type="radio" name="payment_method" value="cod" onchange="handlePaymentMethodChange('cod')">
-        <div class="method-content">
-          <div class="method-icon">💵</div>
-          <div class="method-name">Thanh Toán Khi Nhận Hàng</div>
-          <div class="method-desc">Trả tiền khi nhận sản phẩm</div>
-        </div>
-        <div class="checkmark"></div>
-      </label>
-
-      <!-- Transfer Option -->
-      <label class="payment-method-card">
-        <input type="radio" name="payment_method" value="transfer" onchange="handlePaymentMethodChange('transfer')">
-        <div class="method-content">
-          <div class="method-icon">🏦</div>
-          <div class="method-name">Chuyển Khoản Ngân Hàng</div>
-          <div class="method-desc">Chuyển tiền vào tài khoản của cửa hàng</div>
-        </div>
-        <div class="checkmark"></div>
-      </label>
+  <label class="payment-method-card">
+    <input type="radio" name="payment_method" value="momo" checked onchange="handlePaymentMethodChange('momo')">
+    <div class="method-content">
+      <i class="fa-solid fa-qrcode"></i>
+      <div class="method-name">MoMo</div>
+      <div class="method-desc text-muted small">Thanh toán qua ví MoMo (Test Sandbox)</div>
     </div>
+    <div class="checkmark"></div>
+  </label>
 
-    <div class="text-end mt-4">
-      <button type="submit" class="btn btn-success btn-lg">✅ Tiếp tục thanh toán</button>
-      <a href="{{ url_for('cart') }}" class="btn btn-outline-secondary btn-lg">⬅️ Quay lại giỏ hàng</a>
+  <label class="payment-method-card">
+    <input type="radio" name="payment_method" value="cod" onchange="handlePaymentMethodChange('cod')">
+    <div class="method-content">
+      <div class="method-icon">💵</div>
+      <div class="method-name">Thanh Toán Khi Nhận Hàng</div>
+      <div class="method-desc text-muted small">Trả tiền khi nhận sản phẩm</div>
     </div>
+    <div class="checkmark"></div>
+  </label>
+
+</div>
+
+<!-- Buttons -->
+<div class="action-buttons mt-4">
+  <button type="submit" class="btn btn-success btn-lg w-auto">✅ Tiếp tục thanh toán</button>
+  <a href="{{ url_for('cart') }}" class="btn btn-outline-secondary btn-lg w-auto">⬅️ Quay lại giỏ hàng</a>
+</div>
+
   </form>
 </div>
 

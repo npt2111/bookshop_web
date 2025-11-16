@@ -1,6 +1,10 @@
 {% extends "admin.html" %}
 
 {% block content %}
+
+<a href="javascript:history.back()" class="btn btn-outline-primary mb-3">
+   <i class="fa-solid fa-caret-left"></i>Quay lại
+</a>
 <h2>📦 Chi tiết đơn hàng {{ order.order_id }}</h2>
 <p><strong>Khách hàng:</strong> {{ order.name }}</p>
 <p><strong>Email:</strong> {{ order.email }}</p>
@@ -31,5 +35,11 @@
 
 <p><strong>Tổng tiền:</strong> {{ order.total_amount }}₫</p>
 <p><strong>Ghi chú:</strong> {{ order.note }}</p>
+{% if order.payment == 0 %}
+  <p><strong>Phương thức thanh toán:</strong> <span class="badge bg-secondary">COD</span></p>
+{% else %}
+  <p><strong>Phương thức thanh toán:</strong> <span class="badge bg-success">Online</span></p>
+{% endif %}
+
 <p><strong>Trạng thái:</strong> {{ order.status }}</p>
 {% endblock %}
